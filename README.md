@@ -2,6 +2,76 @@
 
 CareerPilot AI is a human-in-the-loop AI job-search platform that helps a candidate discover, evaluate, prepare, and track real job applications without fabricating experience or taking external actions without approval.
 
+## Current status
+
+Completed foundations:
+
+- Modular Next.js and FastAPI monorepo with Docker Compose and GitHub Actions
+- PostgreSQL/pgvector, Temporal, and Temporal UI local services
+- Alembic-managed PostgreSQL schema with a user identity model
+- Bearer-token registration, login, and authenticated identity API
+- Backend/frontend quality checks and live Compose integration coverage
+
+The next planned slice is secure PDF/DOCX document upload. Job ingestion,
+candidate claims, AI generation, integrations, and external actions are not yet
+implemented.
+
+## Local development
+
+Use only synthetic data and non-secret development values.
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+The migration service applies the current Alembic revision before the API starts.
+
+| Service | Address |
+| --- | --- |
+| Web | http://localhost:3000 |
+| API | http://localhost:8000 |
+| API docs (development) | http://localhost:8000/docs |
+| PostgreSQL | localhost:5432 |
+| Temporal | localhost:7233 |
+| Temporal UI | http://localhost:8080 |
+
+Verify the stack:
+
+```bash
+curl http://localhost:8000/health/live
+curl http://localhost:8000/health/ready
+curl http://localhost:3000/health
+```
+
+To run host-based checks, install Python 3.12 and Node.js 22 or later:
+
+```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e "apps/api[dev]"
+npm install
+make check
+make integration-test
+```
+
+`make check` uses the project virtual environment when it exists and otherwise
+uses `python3.12`, matching CI. `make integration-test` requires Docker and
+checks the published API and web health endpoints.
+
+## Authentication API
+
+All application resources will be scoped to the authenticated user. The current
+API uses short-lived bearer access tokens:
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/v1/auth/register` | Create a user and return an access token |
+| `POST` | `/api/v1/auth/login` | Authenticate and return an access token |
+| `GET` | `/api/v1/auth/me` | Return the current user; requires `Authorization: Bearer <token>` |
+
+Passwords are stored as PBKDF2 hashes. Tokens, passwords, resumes, email data,
+and private configuration must never be committed or logged.
+
 ## Core capabilities
 
 - Build a verified candidate profile from resumes, projects, and approved claims
@@ -37,9 +107,9 @@ CareerPilot AI is a human-in-the-loop AI job-search platform that helps a candid
 7. Scheduled discovery
 8. Evaluations, observability, deployment, and demo
 
-## Start here
+## Development workflow
 
-Codex should read these files in order:
+Review these files in order before starting a bounded implementation task:
 
 1. `AGENTS.md`
 2. `docs/PRODUCT_REQUIREMENTS.md`
@@ -51,3 +121,5 @@ Codex should read these files in order:
 8. The relevant file in `tasks/`
 
 Do not attempt the entire system in one change. Implement one task at a time.
+
+See [MANIFEST.md](MANIFEST.md) for the full documentation inventory.
