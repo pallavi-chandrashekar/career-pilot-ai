@@ -1,198 +1,452 @@
-# Product Requirements
+# Product Requirements Document
 
-## Vision
+## 1. Product vision
 
-CareerPilot AI helps candidates identify relevant jobs, understand why they match, create truthful application materials, and manage recruiting workflows. The system is both a private production tool and a portfolio-quality enterprise AI agent project.
+CareerPilot AI helps candidates identify relevant jobs, understand why they match, create truthful application materials, and manage recruiting workflows. The system is useful as a private production tool and presentable as an enterprise AI agent portfolio project.
 
-## Product principles
+## 2. Personas
+
+### Primary user
+An experienced software engineer seeking senior backend, AI platform, distributed systems, developer platform, or engineering leadership roles.
+
+### Secondary users
+- Any professional with a verified work history
+- A career coach reviewing generated materials
+- A portfolio evaluator inspecting architecture, safety, and evaluation quality
+
+## 3. Product principles
 
 - Truthfulness over persuasion
 - Human approval before external action
 - Deterministic policy enforcement
-- Explainable recommendations
-- Configurable preferences
+- Explainability for scores and recommendations
+- Configurability instead of hard-coded preferences
 - Privacy by default
-- Durable and auditable workflows
+- Durable, auditable workflows
 - Graceful behavior when information is unknown
 
-## Core modules
+## 4. Major modules
 
-1. Candidate profile and verified evidence
-2. Configurable search profiles
-3. Job ingestion and normalization
-4. Deterministic hard filters
-5. Evidence-backed match scoring
-6. Tailored application generation
-7. Approval center
-8. Application tracking
-9. Recruiting communication intelligence
-10. Interview preparation
-11. Analytics
-12. MCP integrations
+1. Candidate profile and evidence
+2. Search profiles
+3. Job ingestion
+4. Job intelligence and scoring
+5. Application package generation
+6. Approval center
+7. Application tracking
+8. Communication intelligence
+9. Interview preparation
+10. Analytics
+11. Integrations
+12. Administration and privacy
 
-## Candidate evidence
+## 5. Candidate profile requirements
 
-The platform accepts PDF or DOCX resumes, manually entered work history, portfolio projects, selected GitHub repositories, and user-provided profile text. It extracts atomic claims such as job titles, employers, dates, responsibilities, technologies, achievements, metrics, project scope, and leadership.
+### 5.1 Inputs
+- PDF resume
+- DOCX resume
+- Manually entered work history
+- Portfolio project descriptions
+- GitHub repositories selected by the user
+- LinkedIn text pasted by the user
+- Certifications and education entered manually
 
-Every extracted claim begins as `DRAFT`. A claim cannot be used in generated application material until the user approves it. Every generated sentence must retain evidence IDs internally.
+### 5.2 Claim extraction
+The system extracts atomic claims such as:
+- Job title and employer
+- Employment dates
+- Responsibilities
+- Technologies
+- Achievements
+- Metrics
+- Scope and leadership
+- Project descriptions
 
-Claim states:
+Each extracted claim begins in `DRAFT` status and cannot be used in generated content until approved.
 
-```text
-DRAFT
-APPROVED
-REJECTED
-ARCHIVED
-```
+### 5.3 Claim fields
+- Canonical statement
+- Claim type
+- Employer
+- Project
+- Dates
+- Technologies
+- Metrics
+- Source document
+- Source location
+- Verification status
+- Allowed usage contexts
+- Sensitivity level
+- User notes
 
-## Configurable search profiles
+### 5.4 Claim states
+- DRAFT
+- APPROVED
+- REJECTED
+- ARCHIVED
 
-A user may create multiple profiles. Each profile supports:
+### 5.5 Acceptance criteria
+- Users can edit extracted claims.
+- Users can approve or reject claims individually or in bulk.
+- Approved claims are immutable except through a versioned edit.
+- Generated content cannot reference unapproved claims.
+- Every generated sentence can be traced to evidence IDs.
 
-- Target roles and aliases
+## 6. Configurable search profiles
+
+Users can create multiple search profiles.
+
+### 6.1 Configurable fields
+- Profile name and description
+- Active/default state
+- Target roles
+- Role aliases
 - Excluded titles
-- Seniority range
-- Preferred, acceptable, and excluded locations
-- Remote, hybrid, and onsite rules
-- Maximum commute and onsite days
+- Minimum and maximum seniority
+- Preferred locations
+- Acceptable locations
+- Excluded locations
+- Remote/hybrid/onsite preferences
+- Maximum commute distance
+- Maximum onsite days
 - Relocation preference
-- Sponsorship and clearance policies
+- Work authorization requirements
+- Sponsorship policy
+- Security-clearance policy
 - Compensation thresholds
 - Employment types
-- Required, preferred, learning, and excluded skills
-- Company and industry preferences
+- Preferred skills
+- Required skills
+- Learning-interest skills
+- Excluded technologies or domains
+- Preferred industries
+- Excluded industries
+- Company size preference
+- Preferred and excluded companies
 - Scoring weights
 - Recommendation thresholds
-- Notification settings
+- Notification rules
 
-Constraint policies:
+### 6.2 Constraint policy types
+Each configurable rule supports:
+- HARD_REQUIREMENT
+- STRONG_PREFERENCE
+- SOFT_PREFERENCE
+- INFORMATIONAL
+- IGNORE
 
-```text
-HARD_REQUIREMENT
-STRONG_PREFERENCE
-SOFT_PREFERENCE
-INFORMATIONAL
-IGNORE
-```
+### 6.3 Search-profile behavior
+- A job can be scored against one or more profiles.
+- One profile may be marked as default.
+- Profiles can be duplicated.
+- Per-job overrides are supported.
+- Configuration versions are retained.
+- Weight totals must equal 100.
+- Invalid configurations cannot be activated.
 
-Weights must total 100. Configuration changes create a new version.
+## 7. Job ingestion
 
-## Job ingestion
-
-Initial inputs:
-
+### 7.1 Supported initial inputs
 - Pasted job description
 - Job URL
-- Manual job form
 - CSV import
 - Job alert email
-- Company career-page URL
+- Company career page URL
+- Manual form entry
 
-Normalized fields include title, canonical title, seniority, responsibilities, required and preferred qualifications, location, work arrangement, employment type, compensation, sponsorship language, clearance language, source, canonical URL, posting date, expiration date, and data-quality score.
+### 7.2 Later integrations
+- Public or licensed job APIs
+- ATS feeds
+- Browser extension capture
+- Approved search providers
+- Company career-page monitoring
 
-Duplicate detection uses canonical URL, external ID, company and normalized title, text fingerprint, and semantic similarity.
+### 7.3 Normalized job fields
+- Company
+- Title
+- Canonical title
+- Seniority
+- Description
+- Required qualifications
+- Preferred qualifications
+- Responsibilities
+- Location
+- Work arrangement
+- Employment type
+- Compensation
+- Sponsorship language
+- Clearance language
+- Source
+- Canonical URL
+- Posting date
+- Expiration date
+- Discovered date
+- Fingerprint
+- Data quality score
 
-## Hard filters
+### 7.4 Duplicate detection
+Use:
+- Canonical URL
+- External job ID
+- Company and normalized title
+- Description fingerprint
+- Semantic similarity
 
-Hard filters run before scoring and return:
+Duplicates should be merged into one canonical job while preserving source records.
 
-```text
-PASS
-REVIEW
-REJECT
-UNKNOWN
-```
+## 8. Hard-filter engine
 
-Supported checks include sponsorship, citizenship, security clearance, location, onsite frequency, relocation, salary minimum, employment type, seniority, degree, language, and license requirements.
+Hard filters run before scoring.
 
-Explicit negative evidence takes precedence. Missing information normally results in `UNKNOWN`, not rejection. Every decision must include rule ID, evidence, and explanation.
+### 8.1 Supported filters
+- Sponsorship unavailable
+- Citizenship requirement
+- Security clearance
+- Location exclusion
+- Onsite frequency violation
+- Relocation requirement
+- Salary below hard minimum
+- Wrong employment type
+- Seniority below minimum
+- Required degree not satisfied
+- Required language or license not satisfied
 
-## Match scoring
+### 8.2 Outcomes
+- PASS
+- REVIEW
+- REJECT
+- UNKNOWN
 
-The scoring pipeline:
+### 8.3 Rules
+- Explicit negative evidence takes precedence.
+- Missing information should normally produce `UNKNOWN`, not rejection.
+- Every result includes a rule ID, evidence text, and explanation.
+- Users may override a result with a reason.
+- Overrides are audited.
 
-1. Run hard filters.
+## 9. Job scoring
+
+### 9.1 Default categories
+- Core technical skills
+- Distributed systems and architecture
+- AI/LLM/RAG/agent alignment
+- Domain alignment
+- Seniority alignment
+- Leadership and ownership
+- Location/work arrangement
+- Sponsorship confidence
+- Compensation alignment
+- Company preference
+
+### 9.2 Scoring pipeline
+1. Apply hard filters.
 2. Parse requirements.
-3. Retrieve approved candidate evidence.
-4. Score deterministic categories.
-5. Use an LLM to judge evidence relevance.
-6. Aggregate weighted scores.
+3. Retrieve candidate evidence.
+4. Score each requirement deterministically where possible.
+5. Ask the LLM to judge evidence relevance.
+6. Aggregate weighted category scores.
 7. Produce confidence and recommendation.
-8. Store scoring version, prompt version, and evidence links.
+8. Store score version, prompt version, and evidence links.
 
-Default recommendation thresholds:
+### 9.3 Recommendation defaults
+- APPLY_NOW: 80–100 and no blocking constraint
+- APPLY_SELECTIVELY: 68–79
+- MANUAL_REVIEW: 55–67 or insufficient information
+- SKIP: below 55
+- REJECT: hard-constraint violation
 
-- `APPLY_NOW`: 80–100 with no blocking constraint
-- `APPLY_SELECTIVELY`: 68–79
-- `MANUAL_REVIEW`: 55–67 or incomplete information
-- `SKIP`: below 55
-- `REJECT`: hard-constraint violation
+Thresholds are configurable.
 
-Every result must include total score, category scores, strengths, gaps, risks, missing information, hard-filter status, evidence links, confidence, recommendation, and suggested next action.
+### 9.4 Explainability
+Each result includes:
+- Total score
+- Category scores
+- Strengths
+- Gaps
+- Risks
+- Missing information
+- Hard-filter result
+- Evidence links
+- Confidence
+- Recommendation
+- Suggested next action
 
-## Application generation
+## 10. Tailored resume generation
 
-Allowed resume operations:
-
+### 10.1 Allowed operations
 - Reorder approved bullets
 - Select relevant bullets
-- Shorten content
+- Shorten text
 - Improve wording without altering meaning
 - Emphasize relevant skills
 - Select relevant projects
 - Use approved metrics
+- Reorder skills
 
-Prohibited operations:
-
+### 10.2 Prohibited operations
 - Invent experience or skills
 - Change employers, titles, or dates
 - Inflate years of experience
 - Invent metrics
 - Present portfolio projects as employer work
-- Add unapproved certifications, publications, patents, or awards
+- Add unapproved education, certification, publication, patent, or award
+- Claim production usage without evidence
 
-Outputs include tailored resume, cover letter, recruiter message, hiring-manager message, referral request, professional summary, screening answers, evidence map, factuality report, ATS coverage, and visible diff from the master resume.
+### 10.3 Generation process
+1. Retrieve job requirements.
+2. Retrieve relevant approved claims.
+3. Build a content plan.
+4. Generate a draft.
+5. Run claim-to-evidence validation.
+6. Run consistency checks.
+7. Run ATS formatting checks.
+8. Produce a visible change report.
+9. Request user approval.
+10. Export DOCX and PDF.
 
-## Human approval
+### 10.4 Outputs
+- Tailored resume
+- Evidence map
+- Diff from master resume
+- ATS keyword coverage
+- Factuality report
+- Export metadata
 
-Approval is required before final export, email sending, calendar writes, uncertain status transitions, policy overrides, or any external action. Approvals are bound to an exact payload hash and become invalid if the payload changes.
+## 11. Other application materials
 
-## Application tracking
+Generate:
+- Cover letter
+- Recruiter message
+- Hiring manager message
+- Referral request
+- Professional summary
+- Why this company
+- Why this role
+- Sponsorship response
+- Salary expectation response
+- Screening-question drafts
 
-Stages:
+All content must follow the same evidence rules.
 
-```text
-DISCOVERED
-REVIEWING
-APPROVED_TO_APPLY
-APPLIED
-RECRUITER_SCREEN
-TECHNICAL_INTERVIEW
-HIRING_MANAGER
-ONSITE_FINAL
-OFFER
-REJECTED
-WITHDRAWN
-CLOSED
-```
+## 12. Approval center
 
-The platform stores applied date, resume version, cover-letter version, source, referral contact, next action, next-action date, interview rounds, notes, compensation details, and outcome.
+Approval is required for:
+- Exporting a final application package
+- Sending email
+- Scheduling calendar events
+- Updating an uncertain application status
+- Approving claims
+- Applying per-job overrides
+- Any external action
 
-## Communication intelligence
+Approval states:
+- DRAFT
+- READY_FOR_REVIEW
+- APPROVED
+- REJECTED
+- EXECUTED
+- EXPIRED
 
-Recruiting emails are classified as application received, recruiter outreach, interview request, assessment, follow-up, rejection, offer-related, or other. Low-confidence classifications must be routed to review.
+## 13. Application tracking
 
-## Interview preparation
+### 13.1 Stages
+- DISCOVERED
+- REVIEWING
+- APPROVED_TO_APPLY
+- APPLIED
+- RECRUITER_SCREEN
+- TECHNICAL_INTERVIEW
+- HIRING_MANAGER
+- ONSITE_FINAL
+- OFFER
+- REJECTED
+- WITHDRAWN
+- CLOSED
 
-Generate company and role summaries, requirement-to-evidence maps, relevant STAR stories, technical topics, system-design prompts, behavioral questions, questions to ask, introductions, and preparation checklists.
+### 13.2 Tracking fields
+- Applied date
+- Resume version
+- Cover letter version
+- Referral contact
+- Source
+- Next action
+- Next action date
+- Notes
+- Compensation details
+- Interview rounds
+- Outcome
+- Rejection reason
 
-## Non-functional requirements
+## 14. Communication intelligence
 
-- Job detail p95 under one second excluding LLM work
-- Normal evaluation under 60 seconds
-- Application package generation under 120 seconds
-- Temporal retries for transient failures
-- Idempotent external actions
+Classify recruiting emails as:
+- APPLICATION_RECEIVED
+- RECRUITER_OUTREACH
+- INTERVIEW_REQUEST
+- ASSESSMENT
+- FOLLOW_UP
+- REJECTION
+- OFFER_RELATED
+- OTHER
+
+Low-confidence results must be routed for review.
+
+## 15. Interview preparation
+
+Generate:
+- Company summary
+- Role summary
+- Requirement-to-evidence map
+- Relevant STAR stories
+- Technical topics
+- System-design prompts
+- Behavioral questions
+- Questions to ask
+- 30-second introduction
+- 2-minute introduction
+- Preparation checklist
+
+## 16. Analytics
+
+Track:
+- Jobs discovered
+- Jobs reviewed
+- Applications submitted
+- Response rate
+- Interview rate
+- Offer rate
+- Application preparation time
+- Best sources
+- Best role categories
+- Best resume versions
+- Score versus outcome
+- Common gaps
+- Follow-up completion
+
+## 17. Non-functional requirements
+
+### Performance
+- Job detail page: p95 under 1 second excluding LLM work
+- Normal job evaluation: under 60 seconds
+- Resume package generation: under 120 seconds
+- List pages paginated
+- Large document parsing performed asynchronously
+
+### Reliability
+- Temporal workflows retry transient failures
+- External actions are idempotent
+- Workflow state survives restarts
+- Duplicate external actions are prevented
+
+### Accessibility
+- Keyboard navigable
 - WCAG 2.1 AA target
-- Per-user data isolation
-- Data export, deletion, retention, and token revocation
+- Proper labels and focus states
+- Status not communicated by color alone
+
+### Privacy
+- Data export
+- Account deletion
+- Document deletion
+- Token revocation
+- Retention settings

@@ -1,6 +1,6 @@
 # System Architecture
 
-## High-level design
+## 1. High-level design
 
 ```text
 Next.js Web App
@@ -30,58 +30,83 @@ MCP Integration Gateway
 PostgreSQL + pgvector + Object Storage
 ```
 
-## Architectural boundaries
+## 2. Architectural boundaries
 
 ### API layer
-
-- Authentication and authorization
+- Authentication
+- Authorization
 - Input validation
 - Pagination
 - Response serialization
-- Workflow status streaming
+- SSE workflow updates
 
 ### Domain layer
-
-Contains deterministic rules:
-
+Contains deterministic business logic:
 - Hard filters
-- Search-profile validation
+- Weight validation
 - Recommendation thresholds
 - Claim permissions
-- Approval enforcement
-- Application-state transitions
+- Approval checks
+- Status transitions
 
 ### AI layer
-
 Contains:
-
-- Versioned prompts
-- Model-provider abstraction
+- Prompt templates
+- Model provider abstraction
 - Structured-output validation
-- Retrieval over approved claims
+- Retrieval
 - Evidence grounding
-- Factuality validation
+- Factuality checking
 
 ### Workflow layer
-
-Temporal coordinates:
-
+Temporal coordinates long-running processes:
 - Resume extraction
-- Job ingestion and evaluation
-- Application-package generation
-- Scheduled job discovery
-- Gmail synchronization
+- Job evaluation
+- Application generation
+- Job discovery
+- Email synchronization
 - Interview preparation
 
 ### Integration layer
+MCP servers or typed adapters isolate:
+- Gmail
+- Google Calendar
+- GitHub
+- Job providers
+- Document export
+- Object storage
 
-MCP servers or typed adapters isolate Gmail, Calendar, GitHub, job providers, document export, and object storage.
+## 3. Monorepo layout
 
-## Controlled agent graph
+```text
+apps/
+  api/
+  web/
+services/
+  candidate/
+  jobs/
+  scoring/
+  applications/
+  integrations/
+packages/
+  domain-models/
+  llm-gateway/
+  prompt-library/
+  mcp-clients/
+  evaluation-kit/
+workflows/
+mcp-servers/
+infrastructure/
+evaluations/
+docs/
+tasks/
+```
 
-Agents must use bounded graphs rather than unrestricted autonomous loops.
+## 4. Agent orchestration
 
-Example job-evaluation graph:
+Use a controlled graph rather than an unrestricted autonomous loop.
+
+Example job evaluation graph:
 
 ```text
 load_job
@@ -90,43 +115,78 @@ load_job
 → parse_requirements
 → retrieve_candidate_evidence
 → score_categories
-→ review_evidence_relevance
+→ llm_evidence_review
 → aggregate_score
 → compliance_check
 → persist_result
 ```
 
-Every node has typed input and output, timeout, retry policy, audit event, and defined failure behavior.
+Every node has:
+- Typed input
+- Typed output
+- Timeout
+- Retry policy
+- Audit event
+- Error behavior
 
-## LLM provider abstraction
+## 5. LLM provider abstraction
 
-Required methods:
-
+Interface methods:
 - `generate_structured`
 - `generate_text`
 - `embed`
 - `count_tokens`
 - `estimate_cost`
 
-Persist provider, model, prompt version, temperature, token usage, latency, cost, and validation errors.
+Store:
+- Provider
+- Model
+- Prompt version
+- Temperature
+- Token counts
+- Latency
+- Cost
+- Response validation errors
 
-## Retrieval design
+## 6. Retrieval design
 
-Use pgvector for candidate claims, project evidence, job requirements, and STAR stories.
+Use pgvector for:
+- Candidate claim embeddings
+- Job requirement embeddings
+- Project evidence
+- STAR stories
 
-Rules:
+Retrieval rules:
+- Retrieve only APPROVED claims
+- Filter by usage permission
+- Return source metadata
+- Apply top-k and minimum similarity
+- Rerank with structured metadata
+- Preserve evidence IDs
 
-- Retrieve only `APPROVED` claims
-- Enforce allowed usage contexts
-- Preserve evidence IDs and source metadata
-- Apply minimum similarity and top-k limits
-- Rerank using structured metadata
+## 7. Multi-tenancy
 
-## Reliability
+Initial deployment may be single-user, but all user-owned tables include `user_id`. Repository methods must scope by user. This allows later multi-user support without redesign.
 
-- Workflow activities are idempotent.
-- Invalid structured model output is repaired once, then routed to review.
-- Provider timeouts use bounded exponential retry.
-- Blocked job pages fall back to manual paste.
-- Duplicate workflow requests return the existing result.
-- External actions require an approved payload hash.
+## 8. Caching
+
+Cache:
+- Parsed job pages
+- Embeddings
+- Static company metadata
+- Job fingerprints
+- Model-independent normalization
+
+Do not cache:
+- Approval-sensitive external actions
+- Private email content beyond configured retention
+- Responses containing revoked claims
+
+## 9. Failure handling
+
+- Invalid structured LLM output: retry once with repair prompt, then fail to review
+- Provider timeout: exponential retry
+- Job page blocked: allow manual paste
+- Document export failure: retain approved content and retry renderer
+- Email classification uncertainty: manual review
+- Duplicate workflow request: return existing idempotent result

@@ -1,0 +1,29 @@
+name: Senior AI Platform - Remote US
+active: true
+target_roles:
+  - title: Senior Software Engineer, AI Platform
+    priority: 1
+locations:
+  preferred:
+    - Remote, US
+    - Irvine, CA
+  relocation_allowed: false
+work_authorization:
+  sponsorship_required: true
+  sponsorship_policy: HARD_REQUIREMENT
+weights:
+  core_technical_skills: 20
+  distributed_systems: 15
+  ai_alignment: 15
+  domain_alignment: 10
+  seniority: 10
+  leadership: 10
+  location: 8
+  sponsorship: 7
+  compensation: 3
+  company_preference: 2
+thresholds:
+  apply_now: 80
+  apply_selectively: 68
+  manual_review: 55
+  skip_below: 55

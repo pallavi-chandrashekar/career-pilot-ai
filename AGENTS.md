@@ -36,8 +36,11 @@ Build a production-minded, human-in-the-loop AI job-search agent that can be use
 - Do not modify unrelated files.
 - Use typed interfaces.
 - Validate API payloads with Pydantic and Zod.
+- Use repository and service layers.
+- Keep LLM prompts versioned.
 - Keep deterministic policy logic separate from LLM reasoning.
 - Make workflow activities idempotent.
+- Add database indexes for user-facing queries.
 - Add audit records for approvals and external actions.
 - Use UTC internally and store user timezone separately.
 - Use feature flags for unfinished integrations.
