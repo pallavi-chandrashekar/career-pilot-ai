@@ -26,6 +26,7 @@ services:
       OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:-careerpilot-documents}
       OBJECT_STORAGE_ACCESS_KEY: ${OBJECT_STORAGE_ACCESS_KEY:-careerpilot}
       OBJECT_STORAGE_SECRET_KEY: ${OBJECT_STORAGE_SECRET_KEY:-careerpilot-development-only}
+      PARSED_CONTENT_ENCRYPTION_KEY: ${PARSED_CONTENT_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
     depends_on:
       migrate:
         condition: service_completed_successfully

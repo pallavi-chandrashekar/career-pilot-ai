@@ -11,6 +11,7 @@ Completed foundations:
 - Alembic-managed PostgreSQL schema with a user identity model
 - Bearer-token registration, login, and authenticated identity API
 - Secure, owner-scoped PDF/DOCX upload with checksum deduplication and MinIO storage
+- Deterministic PDF/DOCX parsing with encrypted parsed content and section line ranges
 - Backend/frontend quality checks and live Compose integration coverage
 
 Candidate claims, AI generation, integrations, and external actions are not yet implemented.
@@ -82,6 +83,7 @@ responses expose metadata and status, never object-storage keys.
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `POST` | `/api/v1/documents` | Upload a document or return its existing per-user duplicate |
+| `POST` | `/api/v1/documents/{id}/parse` | Parse and encrypt normalized content and section locations |
 | `GET` | `/api/v1/documents/{id}/status` | Return owner-scoped upload status |
 
 ## Core capabilities

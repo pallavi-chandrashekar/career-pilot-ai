@@ -3,7 +3,7 @@
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import Enum, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import Enum, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import CITEXT
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -18,6 +18,8 @@ class UserStatus(StrEnum):
 
 class DocumentStatus(StrEnum):
     UPLOADED = "UPLOADED"
+    PARSED = "PARSED"
+    PARSE_FAILED = "PARSE_FAILED"
 
 
 class UserModel(TimestampedModel):
@@ -62,6 +64,9 @@ class DocumentModel(TimestampedModel):
     mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
     storage_key: Mapped[str] = mapped_column(String(512), nullable=False, unique=True)
     checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    parsed_text_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    parsed_sections_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    parser_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
     status: Mapped[DocumentStatus] = mapped_column(
         Enum(DocumentStatus, name="document_status", schema="careerpilot"),
         nullable=False,

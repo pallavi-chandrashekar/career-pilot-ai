@@ -1,5 +1,6 @@
 """Authenticated document upload and owner-scoped status APIs."""
 
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, cast
@@ -10,6 +11,8 @@ from pydantic import BaseModel
 
 from careerpilot_api.auth.api import current_user
 from careerpilot_api.db.models import DocumentModel, DocumentStatus, UserModel
+from careerpilot_api.documents.crypto import ParsedContentCipher
+from careerpilot_api.documents.parser import PARSER_VERSION, parse_document
 from careerpilot_api.documents.repository import DocumentRepository
 from careerpilot_api.documents.service import document_checksum, validate_upload
 from careerpilot_api.storage.s3 import ObjectStorage
@@ -25,6 +28,7 @@ class DocumentResponse(BaseModel):
     checksum: str
     status: DocumentStatus
     created_at: datetime
+    parser_version: str | None
 
 
 def _repository(request: Request) -> DocumentRepository:
@@ -33,6 +37,10 @@ def _repository(request: Request) -> DocumentRepository:
 
 def _storage(request: Request) -> ObjectStorage:
     return cast(ObjectStorage, request.app.state.object_storage)
+
+
+def _cipher(request: Request) -> ParsedContentCipher:
+    return cast(ParsedContentCipher, request.app.state.parsed_content_cipher)
 
 
 def _response(document: DocumentModel) -> DocumentResponse:
@@ -44,6 +52,7 @@ def _response(document: DocumentModel) -> DocumentResponse:
         checksum=document.checksum,
         status=document.status,
         created_at=document.created_at,
+        parser_version=document.parser_version,
     )
 
 
@@ -89,6 +98,40 @@ async def upload_document(
         )
     )
     return _response(document)
+
+
+@router.post("/{document_id}/parse", response_model=DocumentResponse)
+async def parse_uploaded_document(
+    document_id: UUID,
+    request: Request,
+    user: Annotated[UserModel, Depends(current_user)],
+) -> DocumentResponse:
+    repository = _repository(request)
+    document = await repository.get_by_id(user_id=user.id, document_id=document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    try:
+        parsed = parse_document(
+            content=_storage(request).get_bytes(key=document.storage_key),
+            mime_type=document.mime_type,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(status_code=503, detail="Document storage is unavailable.") from error
+
+    sections = [section.__dict__ for section in parsed.sections]
+    cipher = _cipher(request)
+    saved = await repository.save_parse_result(
+        user_id=user.id,
+        document_id=document_id,
+        parsed_text_encrypted=cipher.encrypt(parsed.text),
+        parsed_sections_encrypted=cipher.encrypt(json.dumps(sections)),
+        parser_version=PARSER_VERSION,
+    )
+    if saved is None:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    return _response(saved)
 
 
 @router.get("/{document_id}/status", response_model=DocumentResponse)

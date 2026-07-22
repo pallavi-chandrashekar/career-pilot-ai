@@ -11,12 +11,18 @@ class S3Client(Protocol):
     def put_object(self, *, Bucket: str, Key: str, Body: bytes, ContentType: str) -> object:
         """Persist an S3 object."""
 
+    def get_object(self, *, Bucket: str, Key: str) -> object:
+        """Retrieve an S3 object."""
+
 
 class ObjectStorage(Protocol):
     """The minimum object-store operations required by document upload."""
 
     def put_bytes(self, *, key: str, content: bytes, content_type: str) -> None:
         """Store bytes at an opaque application-generated key."""
+
+    def get_bytes(self, *, key: str) -> bytes:
+        """Retrieve bytes using an opaque application-generated key."""
 
 
 class S3ObjectStorage:
@@ -30,6 +36,20 @@ class S3ObjectStorage:
         self._client.put_object(
             Bucket=self._bucket, Key=key, Body=content, ContentType=content_type
         )
+
+    def get_bytes(self, *, key: str) -> bytes:
+        response = cast(dict[str, object], self._client.get_object(Bucket=self._bucket, Key=key))
+        body = cast("S3Body", response["Body"])
+        try:
+            return body.read()
+        finally:
+            body.close()
+
+
+class S3Body(Protocol):
+    def read(self) -> bytes: ...
+
+    def close(self) -> None: ...
 
 
 def create_object_storage(settings: Settings) -> ObjectStorage:

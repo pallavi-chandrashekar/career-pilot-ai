@@ -1,13 +1,24 @@
 """Real HTTP document upload coverage using fictional data and the Compose stack."""
 
 import os
+from io import BytesIO
 from uuid import uuid4
 
 import httpx
 import pytest
+from docx import Document as DocxDocument
 
 API_BASE_URL = os.getenv("E2E_API_BASE_URL")
 pytestmark = pytest.mark.e2e
+
+
+def _fictional_docx() -> bytes:
+    document = DocxDocument()
+    document.add_paragraph("SUMMARY")
+    document.add_paragraph("Fictional Candidate")
+    output = BytesIO()
+    document.save(output)
+    return output.getvalue()
 
 
 @pytest.mark.skipif(not API_BASE_URL, reason="E2E_API_BASE_URL is required for document E2E tests")
@@ -27,9 +38,9 @@ def test_document_upload_deduplication_and_owner_isolation() -> None:
     headers = {"Authorization": f"Bearer {registration.json()['access_token']}"}
     files = {
         "file": (
-            "fictional-resume.pdf",
-            b"%PDF-1.7\\nfictional candidate document",
-            "application/pdf",
+            "fictional-resume.docx",
+            _fictional_docx(),
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
     }
     upload = httpx.post(
@@ -45,6 +56,13 @@ def test_document_upload_deduplication_and_owner_isolation() -> None:
     )
     assert duplicate.status_code == 200
     assert duplicate.json()["id"] == document["id"]
+
+    parsed = httpx.post(
+        f"{API_BASE_URL}/api/v1/documents/{document['id']}/parse", headers=headers, timeout=10.0
+    )
+    assert parsed.status_code == 200
+    assert parsed.json()["status"] == "PARSED"
+    assert parsed.json()["parser_version"] == "1"
 
     second_registration = httpx.post(
         f"{API_BASE_URL}/api/v1/auth/register",

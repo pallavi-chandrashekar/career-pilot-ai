@@ -20,3 +20,6 @@ class Settings(BaseSettings):
     object_storage_bucket: str = "careerpilot-documents"
     object_storage_access_key: str = "careerpilot"
     object_storage_secret_key: SecretStr = SecretStr("careerpilot-development-only")
+    parsed_content_encryption_key: SecretStr = SecretStr(
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    )

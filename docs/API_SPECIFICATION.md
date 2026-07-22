@@ -52,6 +52,10 @@ Uploads are limited to 10 MiB.
 ### POST /documents/{id}/extract-claims
 Starts claim extraction workflow.
 
+### POST /documents/{id}/parse
+Requires bearer authentication. Parses the owner's stored PDF or DOCX and records
+encrypted normalized text, section line ranges, and a parser version.
+
 ### GET /documents/{id}/status
 Requires bearer authentication. Returns upload status and metadata only when the
 document belongs to the authenticated user. Other users receive `404`.

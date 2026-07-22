@@ -11,6 +11,7 @@ from careerpilot_api.auth.api import router as auth_router
 from careerpilot_api.auth.repository import UserRepository
 from careerpilot_api.config import Settings
 from careerpilot_api.documents.api import router as documents_router
+from careerpilot_api.documents.crypto import ParsedContentCipher
 from careerpilot_api.documents.repository import DocumentRepository
 from careerpilot_api.storage.s3 import create_object_storage
 
@@ -24,6 +25,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.user_repository = UserRepository(session_factory)
     app.state.document_repository = DocumentRepository(session_factory)
     app.state.object_storage = create_object_storage(settings)
+    app.state.parsed_content_cipher = ParsedContentCipher(
+        settings.parsed_content_encryption_key.get_secret_value()
+    )
     try:
         yield
     finally:
