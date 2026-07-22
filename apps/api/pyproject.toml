@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=75.6.0,<76.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "careerpilot-api"
+version = "0.1.0"
+description = "CareerPilot AI FastAPI service"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "asyncpg>=0.30.0,<1.0.0",
+  "fastapi>=0.115.0,<0.116.0",
+  "pydantic-settings>=2.6.1,<3.0.0",
+  "sqlalchemy[asyncio]>=2.0.36,<3.0.0",
+  "uvicorn[standard]>=0.32.0,<0.33.0"
+]
+
+[project.optional-dependencies]
+dev = ["httpx>=0.27.2,<0.29.0", "mypy>=1.13.0,<1.14.0", "pytest>=8.3.3,<9.0.0", "ruff>=0.8.0,<0.9.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+markers = ["e2e: requires a running local Docker Compose stack"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["careerpilot_api"]
+
+[tool.mypy]
+files = ["src"]
+python_version = "3.12"
+strict = true
+
+[tool.setuptools.packages.find]
+where = ["src"]

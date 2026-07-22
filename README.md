@@ -2,6 +2,36 @@
 
 > A human-in-the-loop AI job-search agent that discovers and evaluates opportunities, generates truthful application materials, and tracks recruiting workflows using verified candidate evidence.
 
+## Local development
+
+Task 001 provides the repository foundation only: health checks, local services,
+quality tooling, and a foundation screen. It does not ingest candidate data or
+perform external actions.
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+After startup, the web app is at http://localhost:3000, the API liveness check
+is at http://localhost:8000/health/live, and readiness is at
+http://localhost:8000/health/ready. PostgreSQL (with pgvector), Temporal, and
+Temporal UI run locally on ports 5432, 7233, and 8080 respectively.
+
+For host quality checks, use Python 3.12 and Node 22+:
+
+```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e "apps/api[dev]"
+npm install
+make check
+make integration-test
+```
+
+Use non-secret development values only. `.env` is ignored and real resumes,
+email data, OAuth tokens, and other sensitive information must never be added
+to the repository.
+
 ## Overview
 
 CareerPilot AI is designed as both a practical job-application assistant and a portfolio-quality enterprise agent platform. It combines configurable search profiles, deterministic policy checks, evidence-backed retrieval, durable workflows, MCP integrations, and explicit human approval before external actions.

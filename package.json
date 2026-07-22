@@ -1,0 +1,15 @@
+{
+  "name": "careerpilot-ai",
+  "private": true,
+  "packageManager": "npm@11.11.0",
+  "workspaces": ["apps/web"],
+  "scripts": {
+    "web:dev": "npm run dev --workspace @careerpilot/web",
+    "web:build": "npm run build --workspace @careerpilot/web",
+    "web:format": "npm run format:check --workspace @careerpilot/web",
+    "web:lint": "npm run lint --workspace @careerpilot/web",
+    "web:typecheck": "npm run typecheck --workspace @careerpilot/web",
+    "web:test": "npm run test --workspace @careerpilot/web"
+  },
+  "engines": {"node": ">=22.0.0", "npm": ">=10.0.0"}
+}

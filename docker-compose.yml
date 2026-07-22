@@ -1,0 +1,71 @@
+name: careerpilot
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-careerpilot}
+      POSTGRES_USER: ${POSTGRES_USER:-careerpilot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-careerpilot}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    ports: ["5432:5432"]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: ./apps/api
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-careerpilot}:${POSTGRES_PASSWORD:-careerpilot}@postgres:5432/${POSTGRES_DB:-careerpilot}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health/live')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    ports: ["8000:8000"]
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    ports: ["3000:3000"]
+
+  temporal:
+    image: temporalio/auto-setup:1.29.0
+    environment:
+      DB: postgres12
+      POSTGRES_USER: ${POSTGRES_USER:-careerpilot}
+      POSTGRES_PWD: ${POSTGRES_PASSWORD:-careerpilot}
+      POSTGRES_SEEDS: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports: ["7233:7233"]
+
+  temporal-ui:
+    image: temporalio/ui:2.34.0
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    depends_on: [temporal]
+    ports: ["8080:8080"]
+
+volumes:
+  postgres_data:
