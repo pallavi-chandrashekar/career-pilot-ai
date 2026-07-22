@@ -11,6 +11,18 @@ Base path: `/api/v1`
 - Workflow endpoints return `202 Accepted`
 - All resources are scoped to the authenticated user
 
+## Authentication
+
+### POST /auth/register
+Creates a user and returns a bearer access token.
+
+### POST /auth/login
+Authenticates a user and returns a bearer access token. Invalid credentials use
+the same response regardless of whether the email exists.
+
+### GET /auth/me
+Returns the current authenticated user.
+
 ## Candidate profiles
 
 ### POST /candidate-profiles

@@ -5,15 +5,21 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, status
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 
+from careerpilot_api.auth.api import router as auth_router
+from careerpilot_api.auth.repository import UserRepository
 from careerpilot_api.config import Settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = Settings()
+    app.state.settings = settings
     app.state.database = create_async_engine(str(settings.database_url), pool_pre_ping=True)
+    app.state.user_repository = UserRepository(
+        async_sessionmaker(app.state.database, expire_on_commit=False)
+    )
     try:
         yield
     finally:
@@ -24,6 +30,7 @@ def create_app() -> FastAPI:
     """Create the API without exposing configuration or connection strings."""
 
     app = FastAPI(title="CareerPilot AI", version="0.1.0", lifespan=lifespan)
+    app.include_router(auth_router)
 
     @app.get("/health/live", tags=["health"])
     async def live() -> dict[str, str]:

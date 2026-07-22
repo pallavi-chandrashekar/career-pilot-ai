@@ -1,6 +1,6 @@
 """Validated, non-secret API configuration."""
 
-from pydantic import PostgresDsn
+from pydantic import PostgresDsn, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,3 +14,5 @@ class Settings(BaseSettings):
     database_url: PostgresDsn = PostgresDsn(
         "postgresql+asyncpg://careerpilot:careerpilot@postgres:5432/careerpilot"
     )
+    auth_secret: SecretStr = SecretStr("development-only-change-me")
+    auth_access_token_minutes: int = 30
