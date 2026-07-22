@@ -44,13 +44,17 @@ Multipart upload. Supported MIME types:
 - application/pdf
 - application/vnd.openxmlformats-officedocument.wordprocessingml.document
 
-Returns document metadata.
+Requires bearer authentication. The service verifies the file signature and extension,
+stores bytes under an opaque object-storage key, and returns owner-scoped metadata.
+Uploading the same bytes again for the same user returns the existing metadata.
+Uploads are limited to 10 MiB.
 
 ### POST /documents/{id}/extract-claims
 Starts claim extraction workflow.
 
 ### GET /documents/{id}/status
-Returns parser and extraction status.
+Requires bearer authentication. Returns upload status and metadata only when the
+document belongs to the authenticated user. Other users receive `404`.
 
 ## Candidate claims
 

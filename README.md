@@ -10,11 +10,10 @@ Completed foundations:
 - PostgreSQL/pgvector, Temporal, and Temporal UI local services
 - Alembic-managed PostgreSQL schema with a user identity model
 - Bearer-token registration, login, and authenticated identity API
+- Secure, owner-scoped PDF/DOCX upload with checksum deduplication and MinIO storage
 - Backend/frontend quality checks and live Compose integration coverage
 
-The next planned slice is secure PDF/DOCX document upload. Job ingestion,
-candidate claims, AI generation, integrations, and external actions are not yet
-implemented.
+Candidate claims, AI generation, integrations, and external actions are not yet implemented.
 
 ## Local development
 
@@ -33,6 +32,8 @@ The migration service applies the current Alembic revision before the API starts
 | API | http://localhost:8000 |
 | API docs (development) | http://localhost:8000/docs |
 | PostgreSQL | localhost:5432 |
+| MinIO API | http://localhost:9000 |
+| MinIO Console | http://localhost:9001 |
 | Temporal | localhost:7233 |
 | Temporal UI | http://localhost:8080 |
 
@@ -71,6 +72,17 @@ API uses short-lived bearer access tokens:
 
 Passwords are stored as PBKDF2 hashes. Tokens, passwords, resumes, email data,
 and private configuration must never be committed or logged.
+
+## Documents API
+
+Document endpoints require a bearer access token and accept only PDF or DOCX
+files up to 10 MiB. Document bytes are retained only in object storage; API
+responses expose metadata and status, never object-storage keys.
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/v1/documents` | Upload a document or return its existing per-user duplicate |
+| `GET` | `/api/v1/documents/{id}/status` | Return owner-scoped upload status |
 
 ## Core capabilities
 

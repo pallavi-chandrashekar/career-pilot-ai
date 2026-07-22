@@ -16,3 +16,7 @@ class Settings(BaseSettings):
     )
     auth_secret: SecretStr = SecretStr("development-only-change-me")
     auth_access_token_minutes: int = 30
+    object_storage_endpoint: str = "http://minio:9000"
+    object_storage_bucket: str = "careerpilot-documents"
+    object_storage_access_key: str = "careerpilot"
+    object_storage_secret_key: SecretStr = SecretStr("careerpilot-development-only")
