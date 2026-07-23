@@ -50,7 +50,12 @@ Uploading the same bytes again for the same user returns the existing metadata.
 Uploads are limited to 10 MiB.
 
 ### POST /documents/{id}/extract-claims
-Starts claim extraction workflow.
+Requires bearer authentication. Runs a configured structured LLM provider only
+against the owner's parsed document. Every returned claim must cite source lines,
+is stored as `DRAFT`, and cannot be used as approved candidate evidence.
+
+Repeated requests with the same document/parser/prompt/provider/model inputs
+return the existing idempotent workflow result.
 
 ### POST /documents/{id}/parse
 Requires bearer authentication. Parses the owner's stored PDF or DOCX and records

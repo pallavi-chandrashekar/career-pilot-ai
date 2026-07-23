@@ -64,6 +64,26 @@ def test_document_upload_deduplication_and_owner_isolation() -> None:
     assert parsed.json()["status"] == "PARSED"
     assert parsed.json()["parser_version"] == "1"
 
+    extraction = httpx.post(
+        f"{API_BASE_URL}/api/v1/documents/{document['id']}/extract-claims",
+        headers=headers,
+        json={"provider": "openai"},
+        timeout=60.0,
+    )
+    assert extraction.status_code == 200
+    assert extraction.json()["status"] == "COMPLETED"
+    repeated_extraction = httpx.post(
+        f"{API_BASE_URL}/api/v1/documents/{document['id']}/extract-claims",
+        headers=headers,
+        json={"provider": "openai"},
+        timeout=10.0,
+    )
+    assert repeated_extraction.status_code == 200
+    assert repeated_extraction.json()["id"] == extraction.json()["id"]
+    claims = httpx.get(f"{API_BASE_URL}/api/v1/candidate-claims", headers=headers, timeout=10.0)
+    assert claims.status_code == 200
+    assert all(claim["verification_status"] == "DRAFT" for claim in claims.json())
+
     second_registration = httpx.post(
         f"{API_BASE_URL}/api/v1/auth/register",
         json={
@@ -75,6 +95,11 @@ def test_document_upload_deduplication_and_owner_isolation() -> None:
         timeout=10.0,
     )
     second_headers = {"Authorization": f"Bearer {second_registration.json()['access_token']}"}
+    second_claims = httpx.get(
+        f"{API_BASE_URL}/api/v1/candidate-claims", headers=second_headers, timeout=10.0
+    )
+    assert second_claims.status_code == 200
+    assert second_claims.json() == []
     hidden = httpx.get(
         f"{API_BASE_URL}/api/v1/documents/{document['id']}/status",
         headers=second_headers,

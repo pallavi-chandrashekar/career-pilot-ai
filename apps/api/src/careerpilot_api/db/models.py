@@ -3,7 +3,7 @@
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import Enum, ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Enum, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import CITEXT
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -20,6 +20,15 @@ class DocumentStatus(StrEnum):
     UPLOADED = "UPLOADED"
     PARSED = "PARSED"
     PARSE_FAILED = "PARSE_FAILED"
+
+
+class ClaimVerificationStatus(StrEnum):
+    DRAFT = "DRAFT"
+
+
+class WorkflowStatus(StrEnum):
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
 
 
 class UserModel(TimestampedModel):
@@ -72,3 +81,62 @@ class DocumentModel(TimestampedModel):
         nullable=False,
         default=DocumentStatus.UPLOADED,
     )
+
+
+class CandidateClaimModel(TimestampedModel):
+    __tablename__ = "candidate_claims"
+    __table_args__ = (
+        Index(
+            "ix_candidate_claims_user_status_created_at",
+            "user_id",
+            "verification_status",
+            "created_at",
+        ),
+        {"schema": "careerpilot"},
+    )
+
+    id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("careerpilot.users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    source_document_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("careerpilot.documents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    claim_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    canonical_statement: Mapped[str] = mapped_column(Text, nullable=False)
+    source_locator: Mapped[dict[str, int]] = mapped_column(JSON, nullable=False)
+    verification_status: Mapped[ClaimVerificationStatus] = mapped_column(
+        Enum(ClaimVerificationStatus, name="claim_verification_status", schema="careerpilot"),
+        nullable=False,
+        default=ClaimVerificationStatus.DRAFT,
+    )
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    model: Mapped[str] = mapped_column(String(128), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class WorkflowRunModel(TimestampedModel):
+    __tablename__ = "workflow_runs"
+    __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_workflow_runs_idempotency_key"),
+        {"schema": "careerpilot"},
+    )
+
+    id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("careerpilot.users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    workflow_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[WorkflowStatus] = mapped_column(
+        Enum(WorkflowStatus, name="workflow_status", schema="careerpilot"), nullable=False
+    )
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    model: Mapped[str] = mapped_column(String(128), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(64), nullable=False)

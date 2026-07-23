@@ -23,3 +23,6 @@ class Settings(BaseSettings):
     parsed_content_encryption_key: SecretStr = SecretStr(
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     )
+    openai_api_key: SecretStr | None = None
+    llm_default_provider: str = "openai"
+    llm_default_model: str = "gpt-5.6-sol"
