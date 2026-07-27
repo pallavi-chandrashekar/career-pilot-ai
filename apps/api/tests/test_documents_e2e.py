@@ -14,8 +14,9 @@ pytestmark = pytest.mark.e2e
 
 def _fictional_docx() -> bytes:
     document = DocxDocument()
-    document.add_paragraph("SUMMARY")
     document.add_paragraph("Fictional Candidate")
+    document.add_paragraph("Software Engineer at Fictional Systems")
+    document.add_paragraph("Built a fictional document-processing service in Python.")
     output = BytesIO()
     document.save(output)
     return output.getvalue()
@@ -83,6 +84,23 @@ def test_document_upload_deduplication_and_owner_isolation() -> None:
     claims = httpx.get(f"{API_BASE_URL}/api/v1/candidate-claims", headers=headers, timeout=10.0)
     assert claims.status_code == 200
     assert all(claim["verification_status"] == "DRAFT" for claim in claims.json())
+    assert claims.json()
+    claim = claims.json()[0]
+    evidence = httpx.get(
+        f"{API_BASE_URL}/api/v1/candidate-claims/{claim['id']}/evidence",
+        headers=headers,
+        timeout=10.0,
+    )
+    assert evidence.status_code == 200
+    assert claim["canonical_statement"] in evidence.json()["text"]
+    edited = httpx.patch(
+        f"{API_BASE_URL}/api/v1/candidate-claims/{claim['id']}",
+        headers=headers,
+        json={"canonical_statement": claim["canonical_statement"]},
+        timeout=10.0,
+    )
+    assert edited.status_code == 200
+    assert edited.json()["verification_status"] == "DRAFT"
 
     second_registration = httpx.post(
         f"{API_BASE_URL}/api/v1/auth/register",
@@ -100,6 +118,33 @@ def test_document_upload_deduplication_and_owner_isolation() -> None:
     )
     assert second_claims.status_code == 200
     assert second_claims.json() == []
+    hidden_claim = httpx.post(
+        f"{API_BASE_URL}/api/v1/candidate-claims/{claim['id']}/approve",
+        headers=second_headers,
+        timeout=10.0,
+    )
+    assert hidden_claim.status_code == 404
+    hidden_evidence = httpx.get(
+        f"{API_BASE_URL}/api/v1/candidate-claims/{claim['id']}/evidence",
+        headers=second_headers,
+        timeout=10.0,
+    )
+    assert hidden_evidence.status_code == 404
+
+    approved = httpx.post(
+        f"{API_BASE_URL}/api/v1/candidate-claims/bulk-approve",
+        headers=headers,
+        json={"claim_ids": [claim["id"]]},
+        timeout=10.0,
+    )
+    assert approved.status_code == 200
+    assert approved.json()[0]["verification_status"] == "APPROVED"
+    repeat_approval = httpx.post(
+        f"{API_BASE_URL}/api/v1/candidate-claims/{claim['id']}/approve",
+        headers=headers,
+        timeout=10.0,
+    )
+    assert repeat_approval.status_code == 409
     hidden = httpx.get(
         f"{API_BASE_URL}/api/v1/documents/{document['id']}/status",
         headers=second_headers,

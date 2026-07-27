@@ -68,24 +68,30 @@ document belongs to the authenticated user. Other users receive `404`.
 ## Candidate claims
 
 ### GET /candidate-claims
-Filters:
-- profile_id
-- verification_status
-- claim_type
-- employer
-- technology
+Requires bearer authentication. Lists only the authenticated user's evidence-grounded
+claims. This implementation returns claim type, statement, source document line range,
+and verification status.
+
+### GET /candidate-claims/{id}/evidence
+Requires bearer authentication. Returns only the cited parsed-text lines for an
+owner-scoped claim, allowing the reviewer to inspect its evidence without exposing
+the whole source document.
 
 ### PATCH /candidate-claims/{id}
-Edits a draft claim.
+Requires bearer authentication. Edits only a `DRAFT` claim, and the replacement
+statement must appear in the claim's cited source lines. Claims belonging to another
+user are not disclosed.
 
 ### POST /candidate-claims/{id}/approve
-Approves a claim.
+Requires bearer authentication. Approves only a `DRAFT` claim. Approval is an explicit
+human action; no LLM can approve claims.
 
 ### POST /candidate-claims/{id}/reject
-Rejects a claim.
+Requires bearer authentication. Rejects only a `DRAFT` claim.
 
 ### POST /candidate-claims/bulk-approve
-Approves multiple claims.
+Requires bearer authentication. Atomically approves an owner-scoped, unique set of
+`DRAFT` claims; no claims are changed if any requested claim is missing or not a draft.
 
 ## Search profiles
 

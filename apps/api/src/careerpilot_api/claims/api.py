@@ -42,6 +42,21 @@ class ClaimResponse(BaseModel):
     verification_status: ClaimVerificationStatus
 
 
+class ClaimEvidenceResponse(BaseModel):
+    source_document_id: UUID
+    start_line: int
+    end_line: int
+    text: str
+
+
+class EditClaimRequest(BaseModel):
+    canonical_statement: str = Field(min_length=1, max_length=5000)
+
+
+class BulkApproveRequest(BaseModel):
+    claim_ids: list[UUID] = Field(min_length=1, max_length=100)
+
+
 def _claims(request: Request) -> ClaimRepository:
     return cast(ClaimRepository, request.app.state.claim_repository)
 
@@ -132,3 +147,132 @@ async def list_claims(
         )
         for claim in await _claims(request).list_claims(user_id=user.id)
     ]
+
+
+@router.get("/candidate-claims/{claim_id}/evidence", response_model=ClaimEvidenceResponse)
+async def get_claim_evidence(
+    claim_id: UUID,
+    request: Request,
+    user: Annotated[UserModel, Depends(current_user)],
+) -> ClaimEvidenceResponse:
+    claim = await _claims(request).get_by_id(user_id=user.id, claim_id=claim_id)
+    if claim is None:
+        raise HTTPException(status_code=404, detail="Claim not found.")
+    document = await cast(DocumentRepository, request.app.state.document_repository).get_by_id(
+        user_id=user.id, document_id=claim.source_document_id
+    )
+    if document is None or document.parsed_text_encrypted is None:
+        raise HTTPException(status_code=409, detail="Claim source document is unavailable.")
+    lines = [
+        line
+        for line in cast(ParsedContentCipher, request.app.state.parsed_content_cipher)
+        .decrypt(document.parsed_text_encrypted)
+        .splitlines()
+        if line.strip()
+    ]
+    start = claim.source_locator["start_line"]
+    end = claim.source_locator["end_line"]
+    return ClaimEvidenceResponse(
+        source_document_id=document.id,
+        start_line=start,
+        end_line=end,
+        text="\n".join(lines[start - 1 : end]),
+    )
+
+
+def _claim_response(claim: CandidateClaimModel) -> ClaimResponse:
+    return ClaimResponse(
+        id=claim.id,
+        source_document_id=claim.source_document_id,
+        claim_type=claim.claim_type,
+        canonical_statement=claim.canonical_statement,
+        source_locator=claim.source_locator,
+        verification_status=claim.verification_status,
+    )
+
+
+@router.patch("/candidate-claims/{claim_id}", response_model=ClaimResponse)
+async def edit_claim(
+    claim_id: UUID,
+    payload: EditClaimRequest,
+    request: Request,
+    user: Annotated[UserModel, Depends(current_user)],
+) -> ClaimResponse:
+    existing = await _claims(request).get_by_id(user_id=user.id, claim_id=claim_id)
+    if existing is None:
+        raise HTTPException(status_code=404, detail="Claim not found.")
+    document = await cast(DocumentRepository, request.app.state.document_repository).get_by_id(
+        user_id=user.id, document_id=existing.source_document_id
+    )
+    if document is None or document.parsed_text_encrypted is None:
+        raise HTTPException(status_code=409, detail="Claim source document is unavailable.")
+    parsed_text = cast(ParsedContentCipher, request.app.state.parsed_content_cipher).decrypt(
+        document.parsed_text_encrypted
+    )
+    lines = [line for line in parsed_text.splitlines() if line.strip()]
+    start = existing.source_locator["start_line"] - 1
+    end = existing.source_locator["end_line"]
+    if payload.canonical_statement.casefold() not in "\n".join(lines[start:end]).casefold():
+        raise HTTPException(
+            status_code=422, detail="Edited claim must be supported by its source lines."
+        )
+    try:
+        claim = await _claims(request).edit_draft(
+            user_id=user.id, claim_id=claim_id, canonical_statement=payload.canonical_statement
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    if claim is None:
+        raise HTTPException(status_code=404, detail="Claim not found.")
+    return _claim_response(claim)
+
+
+@router.post("/candidate-claims/{claim_id}/approve", response_model=ClaimResponse)
+async def approve_claim(
+    claim_id: UUID, request: Request, user: Annotated[UserModel, Depends(current_user)]
+) -> ClaimResponse:
+    claim = await _claims(request).get_by_id(user_id=user.id, claim_id=claim_id)
+    if claim is None:
+        raise HTTPException(status_code=404, detail="Claim not found.")
+    if claim.verification_status is not ClaimVerificationStatus.DRAFT:
+        raise HTTPException(status_code=409, detail="Only draft claims can be approved.")
+    saved = await _claims(request).set_status(
+        user_id=user.id, claim_id=claim_id, claim_status=ClaimVerificationStatus.APPROVED
+    )
+    if saved is None:
+        raise HTTPException(status_code=404, detail="Claim not found.")
+    return _claim_response(saved)
+
+
+@router.post("/candidate-claims/{claim_id}/reject", response_model=ClaimResponse)
+async def reject_claim(
+    claim_id: UUID, request: Request, user: Annotated[UserModel, Depends(current_user)]
+) -> ClaimResponse:
+    claim = await _claims(request).get_by_id(user_id=user.id, claim_id=claim_id)
+    if claim is None:
+        raise HTTPException(status_code=404, detail="Claim not found.")
+    if claim.verification_status is not ClaimVerificationStatus.DRAFT:
+        raise HTTPException(status_code=409, detail="Only draft claims can be rejected.")
+    saved = await _claims(request).set_status(
+        user_id=user.id, claim_id=claim_id, claim_status=ClaimVerificationStatus.REJECTED
+    )
+    if saved is None:
+        raise HTTPException(status_code=404, detail="Claim not found.")
+    return _claim_response(saved)
+
+
+@router.post("/candidate-claims/bulk-approve", response_model=list[ClaimResponse])
+async def bulk_approve(
+    payload: BulkApproveRequest,
+    request: Request,
+    user: Annotated[UserModel, Depends(current_user)],
+) -> list[ClaimResponse]:
+    if len(set(payload.claim_ids)) != len(payload.claim_ids):
+        raise HTTPException(status_code=422, detail="Claim IDs must be unique.")
+    try:
+        claims = await _claims(request).approve_drafts(user_id=user.id, claim_ids=payload.claim_ids)
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    return [_claim_response(claim) for claim in claims]

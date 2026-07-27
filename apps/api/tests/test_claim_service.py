@@ -33,3 +33,13 @@ def test_idempotency_key_changes_for_provider_or_model() -> None:
 def test_unknown_provider_is_rejected() -> None:
     with pytest.raises(ValueError, match="not enabled"):
         ProviderRegistry(()).get("unknown")
+
+
+def test_edited_statement_must_remain_in_cited_source_lines() -> None:
+    claims = (ExtractedClaim("SUMMARY", "Fictional Candidate", 1, 1),)
+    assert validate_claims(claims=claims, parsed_text="Fictional Candidate") == claims
+    with pytest.raises(ValueError, match="directly supported"):
+        validate_claims(
+            claims=(ExtractedClaim("SUMMARY", "Invented achievement", 1, 1),),
+            parsed_text="Fictional Candidate",
+        )

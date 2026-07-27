@@ -24,6 +24,9 @@ class DocumentStatus(StrEnum):
 
 class ClaimVerificationStatus(StrEnum):
     DRAFT = "DRAFT"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    ARCHIVED = "ARCHIVED"
 
 
 class WorkflowStatus(StrEnum):
