@@ -131,7 +131,9 @@ and pasted description, with optional location and source URL. Text is treated a
 normalization and deduplication are deferred to later tasks.
 
 ### POST /jobs/import-url
-Starts URL extraction and normalization.
+Requires bearer authentication. Fetches a permitted public HTML page and returns bounded,
+untrusted extracted text for review. Blocked or unreadable pages return `PASTE_REQUIRED` with a
+paste fallback message; normalization is deferred to Task 011.
 
 ### POST /jobs/import-csv
 Imports job rows.

@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, HttpUrl
 from careerpilot_api.auth.api import current_user
 from careerpilot_api.db.models import JobModel, JobSourceModel, UserModel
 from careerpilot_api.jobs.repository import JobRepository
+from careerpilot_api.jobs.url_ingestion import fetch_job_page
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
 
@@ -28,6 +29,18 @@ class JobResponse(BaseModel):
     location: str | None
     canonical_url: str | None
     source_type: str = "MANUAL"
+
+
+class UrlImportRequest(BaseModel):
+    url: HttpUrl
+
+
+class UrlImportResponse(BaseModel):
+    status: str
+    url: str
+    extracted_text: str | None = None
+    page_title: str | None = None
+    paste_fallback_message: str | None = None
 
 
 def _repo(request: Request) -> JobRepository:
@@ -63,6 +76,21 @@ async def create_job(
         job, JobSourceModel(job_id=job.id, source_type="MANUAL", source_url=job.canonical_url)
     )
     return _response(saved)
+
+
+@router.post("/import-url", response_model=UrlImportResponse)
+async def import_job_url(
+    payload: UrlImportRequest, user: Annotated[UserModel, Depends(current_user)]
+) -> UrlImportResponse:
+    del user
+    url = str(payload.url)
+    try:
+        text, title = await fetch_job_page(url)
+    except (PermissionError, ValueError) as error:
+        return UrlImportResponse(
+            status="PASTE_REQUIRED", url=url, paste_fallback_message=str(error)
+        )
+    return UrlImportResponse(status="EXTRACTED", url=url, extracted_text=text, page_title=title)
 
 
 @router.get("", response_model=list[JobResponse])
