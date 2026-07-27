@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, HttpUrl
 
 from careerpilot_api.auth.api import current_user
 from careerpilot_api.db.models import JobModel, JobSourceModel, UserModel
+from careerpilot_api.jobs.normalization import normalize
 from careerpilot_api.jobs.repository import JobRepository
 from careerpilot_api.jobs.url_ingestion import fetch_job_page
 
@@ -29,6 +30,11 @@ class JobResponse(BaseModel):
     location: str | None
     canonical_url: str | None
     source_type: str = "MANUAL"
+    normalized_requirements: dict[str, object] | None = None
+    seniority: str | None = None
+    compensation: dict[str, object] | None = None
+    sponsorship: str | None = None
+    clearance: str | None = None
 
 
 class UrlImportRequest(BaseModel):
@@ -55,6 +61,11 @@ def _response(job: JobModel) -> JobResponse:
         description=job.description,
         location=job.location,
         canonical_url=job.canonical_url,
+        normalized_requirements=job.normalized_requirements,
+        seniority=job.seniority,
+        compensation=job.compensation,
+        sponsorship=job.sponsorship,
+        clearance=job.clearance,
     )
 
 
@@ -91,6 +102,21 @@ async def import_job_url(
             status="PASTE_REQUIRED", url=url, paste_fallback_message=str(error)
         )
     return UrlImportResponse(status="EXTRACTED", url=url, extracted_text=text, page_title=title)
+
+
+@router.post("/{job_id}/normalize", response_model=JobResponse)
+async def normalize_job(
+    job_id: UUID, request: Request, user: Annotated[UserModel, Depends(current_user)]
+) -> JobResponse:
+    job = await _repo(request).get(user_id=user.id, job_id=job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    saved = await _repo(request).save_normalization(
+        user_id=user.id, job_id=job_id, value=normalize(job.description)
+    )
+    if saved is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    return _response(saved)
 
 
 @router.get("", response_model=list[JobResponse])

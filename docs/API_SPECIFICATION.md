@@ -152,6 +152,10 @@ Filters:
 ### GET /jobs/{id}
 Returns normalized job and source metadata.
 
+### POST /jobs/{id}/normalize
+Requires bearer authentication. Deterministically extracts explicit requirement, seniority,
+compensation, sponsorship, and clearance signals from the owner's job description.
+
 ### POST /jobs/{id}/evaluate
 Starts evaluation for one or more search profiles.
 

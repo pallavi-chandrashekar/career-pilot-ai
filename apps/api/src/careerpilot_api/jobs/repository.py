@@ -41,3 +41,21 @@ class JobRepository:
                     select(JobModel).where(JobModel.user_id == user_id, JobModel.id == job_id)
                 ),
             )
+
+    async def save_normalization(
+        self, *, user_id: UUID, job_id: UUID, value: dict[str, object]
+    ) -> JobModel | None:
+        async with self._session_factory() as session:
+            job = await session.scalar(
+                select(JobModel).where(JobModel.user_id == user_id, JobModel.id == job_id)
+            )
+            if job is None:
+                return None
+            job.normalized_requirements = value["requirements"]  # type: ignore[assignment]
+            job.seniority = value["seniority"]  # type: ignore[assignment]
+            job.compensation = value["compensation"]  # type: ignore[assignment]
+            job.sponsorship = value["sponsorship"]  # type: ignore[assignment]
+            job.clearance = value["clearance"]  # type: ignore[assignment]
+            await session.commit()
+            await session.refresh(job)
+            return job

@@ -187,6 +187,11 @@ class JobModel(TimestampedModel):
     location: Mapped[str | None] = mapped_column(String(255), nullable=True)
     canonical_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    normalized_requirements: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    seniority: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    compensation: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    sponsorship: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    clearance: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
 
 class JobSourceModel(TimestampedModel):
