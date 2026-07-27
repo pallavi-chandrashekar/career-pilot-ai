@@ -126,7 +126,9 @@ does not present a score as available before that implementation exists.
 ## Jobs
 
 ### POST /jobs
-Creates a job from manual fields or pasted text.
+Requires bearer authentication. Creates an owner-scoped manual job from company, title,
+and pasted description, with optional location and source URL. Text is treated as untrusted;
+normalization and deduplication are deferred to later tasks.
 
 ### POST /jobs/import-url
 Starts URL extraction and normalization.

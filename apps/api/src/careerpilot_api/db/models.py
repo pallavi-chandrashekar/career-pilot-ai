@@ -167,6 +167,45 @@ class SearchProfileVersionModel(TimestampedModel):
     configuration: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
 
 
+class JobModel(TimestampedModel):
+    __tablename__ = "jobs"
+    __table_args__ = (
+        UniqueConstraint("user_id", "fingerprint", name="uq_jobs_user_fingerprint"),
+        Index("ix_jobs_user_created_at", "user_id", "created_at"),
+        {"schema": "careerpilot"},
+    )
+
+    id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("careerpilot.users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    company: Mapped[str] = mapped_column(String(255), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    location: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    canonical_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class JobSourceModel(TimestampedModel):
+    __tablename__ = "job_sources"
+    __table_args__ = (
+        Index("ix_job_sources_job_created_at", "job_id", "created_at"),
+        {"schema": "careerpilot"},
+    )
+
+    id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
+    job_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("careerpilot.jobs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    source_type: Mapped[str] = mapped_column(String(32), nullable=False, default="MANUAL")
+    source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+
+
 class WorkflowRunModel(TimestampedModel):
     __tablename__ = "workflow_runs"
     __table_args__ = (

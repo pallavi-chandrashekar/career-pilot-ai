@@ -1,0 +1,82 @@
+from hashlib import sha256
+from typing import Annotated, cast
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, Field, HttpUrl
+
+from careerpilot_api.auth.api import current_user
+from careerpilot_api.db.models import JobModel, JobSourceModel, UserModel
+from careerpilot_api.jobs.repository import JobRepository
+
+router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
+
+
+class JobRequest(BaseModel):
+    company: str = Field(min_length=1, max_length=255)
+    title: str = Field(min_length=1, max_length=255)
+    description: str = Field(min_length=1, max_length=100000)
+    location: str | None = Field(default=None, max_length=255)
+    source_url: HttpUrl | None = None
+
+
+class JobResponse(BaseModel):
+    id: UUID
+    company: str
+    title: str
+    description: str
+    location: str | None
+    canonical_url: str | None
+    source_type: str = "MANUAL"
+
+
+def _repo(request: Request) -> JobRepository:
+    return cast(JobRepository, request.app.state.job_repository)
+
+
+def _response(job: JobModel) -> JobResponse:
+    return JobResponse(
+        id=job.id,
+        company=job.company,
+        title=job.title,
+        description=job.description,
+        location=job.location,
+        canonical_url=job.canonical_url,
+    )
+
+
+@router.post("", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
+async def create_job(
+    payload: JobRequest, request: Request, user: Annotated[UserModel, Depends(current_user)]
+) -> JobResponse:
+    value = "\n".join((payload.company.strip(), payload.title.strip(), payload.description.strip()))
+    job = JobModel(
+        user_id=user.id,
+        company=payload.company.strip(),
+        title=payload.title.strip(),
+        description=payload.description.strip(),
+        location=payload.location.strip() if payload.location else None,
+        canonical_url=str(payload.source_url) if payload.source_url else None,
+        fingerprint=sha256(value.casefold().encode()).hexdigest(),
+    )
+    saved = await _repo(request).create(
+        job, JobSourceModel(job_id=job.id, source_type="MANUAL", source_url=job.canonical_url)
+    )
+    return _response(saved)
+
+
+@router.get("", response_model=list[JobResponse])
+async def list_jobs(
+    request: Request, user: Annotated[UserModel, Depends(current_user)]
+) -> list[JobResponse]:
+    return [_response(job) for job in await _repo(request).list(user_id=user.id)]
+
+
+@router.get("/{job_id}", response_model=JobResponse)
+async def get_job(
+    job_id: UUID, request: Request, user: Annotated[UserModel, Depends(current_user)]
+) -> JobResponse:
+    job = await _repo(request).get(user_id=user.id, job_id=job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    return _response(job)
