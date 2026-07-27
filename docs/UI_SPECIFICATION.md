@@ -54,6 +54,10 @@ Features:
 - Preview score
 - Import/export YAML
 
+Implementation note: the editor preserves configuration as YAML and calls the
+owner-scoped search-profile APIs. Score preview remains unavailable until the
+deterministic scoring engine is delivered.
+
 ## Job Inbox
 Columns/cards:
 - Company

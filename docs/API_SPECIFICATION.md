@@ -120,7 +120,8 @@ Requires bearer authentication. Activates/deactivates a profile and optionally m
 single active default profile for the user. Invalid configurations cannot be persisted.
 
 ### POST /search-profiles/{id}/preview-score
-Scores a supplied sample job without persisting it.
+Reserved for the deterministic scoring engine in Task 014. The Search Profile UI
+does not present a score as available before that implementation exists.
 
 ## Jobs
 

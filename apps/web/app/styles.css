@@ -77,3 +77,61 @@ button:disabled {
   background: #e2e8f0;
   white-space: pre-wrap;
 }
+.workspace-nav,
+.profile-layout {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.workspace-nav {
+  margin-bottom: 1rem;
+}
+.selected {
+  background: #0f3d70;
+}
+.profile-layout {
+  align-items: flex-start;
+}
+.profile-layout aside {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 13rem;
+}
+.profile-card {
+  text-align: left;
+  background: #475569;
+}
+.profile-layout > div {
+  flex: 1;
+  min-width: min(100%, 24rem);
+}
+.yaml-editor {
+  display: grid;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+.yaml-editor textarea {
+  min-height: 32rem;
+  padding: 0.75rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+}
+.section-help {
+  color: #475569;
+}
+.file-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0 0.8rem;
+  color: white;
+  background: #475569;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+.file-button input {
+  display: none;
+}
+.state-actions {
+  margin-top: 0.75rem;
+}
