@@ -122,6 +122,51 @@ class CandidateClaimModel(TimestampedModel):
     prompt_version: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
+class SearchProfileModel(TimestampedModel):
+    """Owner-scoped search-profile identity and current operational state."""
+
+    __tablename__ = "search_profiles"
+    __table_args__ = (
+        Index("ix_search_profiles_user_active_created_at", "user_id", "is_active", "created_at"),
+        Index("ix_search_profiles_user_default", "user_id", "is_default"),
+        {"schema": "careerpilot"},
+    )
+
+    id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("careerpilot.users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    is_default: Mapped[bool] = mapped_column(nullable=False, default=False)
+    is_active: Mapped[bool] = mapped_column(nullable=False, default=False)
+    current_version: Mapped[int] = mapped_column(nullable=False, default=1)
+
+
+class SearchProfileVersionModel(TimestampedModel):
+    """Immutable validated configuration history for a search profile."""
+
+    __tablename__ = "search_profile_versions"
+    __table_args__ = (
+        UniqueConstraint(
+            "profile_id", "version", name="uq_search_profile_versions_profile_version"
+        ),
+        Index("ix_search_profile_versions_profile_version", "profile_id", "version"),
+        {"schema": "careerpilot"},
+    )
+
+    id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
+    profile_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("careerpilot.search_profiles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    version: Mapped[int] = mapped_column(nullable=False)
+    configuration: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+
+
 class WorkflowRunModel(TimestampedModel):
     __tablename__ = "workflow_runs"
     __table_args__ = (

@@ -20,6 +20,8 @@ from careerpilot_api.config import Settings
 from careerpilot_api.documents.api import router as documents_router
 from careerpilot_api.documents.crypto import ParsedContentCipher
 from careerpilot_api.documents.repository import DocumentRepository
+from careerpilot_api.search_profiles.api import router as search_profiles_router
+from careerpilot_api.search_profiles.repository import SearchProfileRepository
 from careerpilot_api.storage.s3 import create_object_storage
 
 
@@ -32,6 +34,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.user_repository = UserRepository(session_factory)
     app.state.document_repository = DocumentRepository(session_factory)
     app.state.claim_repository = ClaimRepository(session_factory)
+    app.state.search_profile_repository = SearchProfileRepository(session_factory)
     providers: tuple[ClaimExtractionProvider, ...] = ()
     if settings.openai_api_key is not None:
         providers = (OpenAIClaimExtractionProvider(settings.openai_api_key.get_secret_value()),)
@@ -53,6 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(claims_router)
     app.include_router(documents_router)
+    app.include_router(search_profiles_router)
 
     @app.get("/health/live", tags=["health"])
     async def live() -> dict[str, str]:

@@ -96,22 +96,28 @@ Requires bearer authentication. Atomically approves an owner-scoped, unique set 
 ## Search profiles
 
 ### POST /search-profiles
-Validates configuration and creates version 1.
+Requires bearer authentication. Validates configuration and creates version 1.
 
 ### GET /search-profiles
-Lists active and historical profiles.
+Requires bearer authentication. Lists the authenticated user's current profile versions.
+Use `active_only=true` to return active profiles only.
 
 ### GET /search-profiles/{id}
-Returns the latest or requested version.
+Requires bearer authentication. Returns the authenticated user's current version.
 
 ### PUT /search-profiles/{id}
-Creates a new configuration version.
+Requires bearer authentication. Creates an immutable new configuration version.
 
 ### POST /search-profiles/{id}/duplicate
-Creates a copy.
+Requires bearer authentication. Creates an inactive version-1 copy; it does not become default.
 
 ### POST /search-profiles/{id}/validate
-Returns validation errors.
+Requires bearer authentication. Returns deterministic configuration validation errors without
+persisting the submitted configuration.
+
+### POST /search-profiles/{id}/state
+Requires bearer authentication. Activates/deactivates a profile and optionally makes it the
+single active default profile for the user. Invalid configurations cannot be persisted.
 
 ### POST /search-profiles/{id}/preview-score
 Scores a supplied sample job without persisting it.
