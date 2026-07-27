@@ -21,6 +21,28 @@ class JobRepository:
             await session.refresh(job)
             return job
 
+    async def find_duplicate(
+        self, *, user_id: UUID, fingerprint: str, canonical_url: str | None
+    ) -> JobModel | None:
+        async with self._session_factory() as session:
+            statement = select(JobModel).where(
+                JobModel.user_id == user_id, JobModel.fingerprint == fingerprint
+            )
+            job = await session.scalar(statement)
+            if job is None and canonical_url is not None:
+                job = await session.scalar(
+                    select(JobModel).where(
+                        JobModel.user_id == user_id, JobModel.canonical_url == canonical_url
+                    )
+                )
+            return job
+
+    async def add_source(self, *, job_id: UUID, source: JobSourceModel) -> None:
+        async with self._session_factory() as session:
+            source.job_id = job_id
+            session.add(source)
+            await session.commit()
+
     async def list(self, *, user_id: UUID) -> list[JobModel]:
         async with self._session_factory() as session:
             return list(

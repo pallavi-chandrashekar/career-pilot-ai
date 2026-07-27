@@ -128,7 +128,8 @@ does not present a score as available before that implementation exists.
 ### POST /jobs
 Requires bearer authentication. Creates an owner-scoped manual job from company, title,
 and pasted description, with optional location and source URL. Text is treated as untrusted;
-normalization and deduplication are deferred to later tasks.
+normalization is deferred to Task 011. Exact owner-scoped fingerprint and URL duplicates return
+the canonical job while preserving the additional manual source record.
 
 ### POST /jobs/import-url
 Requires bearer authentication. Fetches a permitted public HTML page and returns bounded,

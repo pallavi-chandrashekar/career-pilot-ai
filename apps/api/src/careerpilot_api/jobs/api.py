@@ -83,6 +83,17 @@ async def create_job(
         canonical_url=str(payload.source_url) if payload.source_url else None,
         fingerprint=sha256(value.casefold().encode()).hexdigest(),
     )
+    existing = await _repo(request).find_duplicate(
+        user_id=user.id, fingerprint=job.fingerprint, canonical_url=job.canonical_url
+    )
+    if existing is not None:
+        await _repo(request).add_source(
+            job_id=existing.id,
+            source=JobSourceModel(
+                job_id=existing.id, source_type="MANUAL", source_url=job.canonical_url
+            ),
+        )
+        return _response(existing)
     saved = await _repo(request).create(
         job, JobSourceModel(job_id=job.id, source_type="MANUAL", source_url=job.canonical_url)
     )
