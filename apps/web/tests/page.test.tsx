@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import HomePage from "../app/page";
 import { JobInbox } from "../app/job-inbox";
+import { ResumeEditor } from "../app/resume-editor";
 import { SearchProfileEditor } from "../app/search-profile-editor";
 
 describe("HomePage", () => {
@@ -36,5 +37,11 @@ describe("HomePage", () => {
     expect(screen.getByRole("heading", { name: "Import from URL" })).toBeInTheDocument();
     expect(screen.getByText(/Nothing is submitted to an employer/i)).toBeInTheDocument();
     expect(screen.queryByText("Profile-based score preview")).not.toBeInTheDocument();
+  });
+
+  it("describes the master resume as evidence-backed structured content", () => {
+    render(<ResumeEditor token="test-token" />);
+    expect(screen.getByRole("heading", { name: "Master resume" })).toBeInTheDocument();
+    expect(screen.getByText(/not free-form text/i)).toBeInTheDocument();
   });
 });

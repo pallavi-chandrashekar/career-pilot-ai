@@ -213,6 +213,30 @@ class JobSourceModel(TimestampedModel):
     source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
 
 
+class ResumeVersionModel(TimestampedModel):
+    """Immutable, owner-scoped structured resume version backed by approved claims."""
+
+    __tablename__ = "resume_versions"
+    __table_args__ = (
+        Index("ix_resume_versions_user_created_at", "user_id", "created_at"),
+        {"schema": "careerpilot"},
+    )
+
+    id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("careerpilot.users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    content_model: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    parent_version_id: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("careerpilot.resume_versions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+
 class WorkflowRunModel(TimestampedModel):
     __tablename__ = "workflow_runs"
     __table_args__ = (

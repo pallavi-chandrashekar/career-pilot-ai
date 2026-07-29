@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { SearchProfileEditor } from "./search-profile-editor";
 import { JobInbox } from "./job-inbox";
 import { EvidenceOnboarding } from "./evidence-onboarding";
+import { ResumeEditor } from "./resume-editor";
 
 type Claim = {
   id: string;
@@ -27,9 +28,9 @@ export default function HomePage() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
-  const [workspace, setWorkspace] = useState<"evidence" | "claims" | "profiles" | "jobs">(
-    "evidence",
-  );
+  const [workspace, setWorkspace] = useState<
+    "evidence" | "claims" | "resume" | "profiles" | "jobs"
+  >("evidence");
   const [claims, setClaims] = useState<Claim[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [edits, setEdits] = useState<Record<string, string>>({});
@@ -209,6 +210,12 @@ export default function HomePage() {
           Claim review
         </button>
         <button
+          className={workspace === "resume" ? "selected" : "secondary"}
+          onClick={() => setWorkspace("resume")}
+        >
+          Master resume
+        </button>
+        <button
           className={workspace === "profiles" ? "selected" : "secondary"}
           onClick={() => setWorkspace("profiles")}
         >
@@ -237,6 +244,8 @@ export default function HomePage() {
         />
       ) : workspace === "profiles" ? (
         <SearchProfileEditor token={token} />
+      ) : workspace === "resume" ? (
+        <ResumeEditor token={token} />
       ) : workspace === "jobs" ? (
         <JobInbox token={token} />
       ) : (
