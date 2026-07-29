@@ -10,6 +10,7 @@ from careerpilot_api.db.models import JobModel, JobSourceModel, UserModel
 from careerpilot_api.jobs.hard_filters import evaluate_clearance, evaluate_sponsorship
 from careerpilot_api.jobs.normalization import normalize
 from careerpilot_api.jobs.repository import JobRepository
+from careerpilot_api.jobs.scoring import score
 from careerpilot_api.jobs.url_ingestion import fetch_job_page
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
@@ -107,6 +108,34 @@ async def create_job(
 
 class OverrideRequest(BaseModel):
     reason: str = Field(min_length=1, max_length=1000)
+
+
+class ScorePreviewRequest(BaseModel):
+    category_scores: dict[str, int]
+    weights: dict[str, int]
+    thresholds: dict[str, int]
+
+
+@router.post("/{job_id}/preview-score")
+async def preview_score(
+    job_id: UUID,
+    payload: ScorePreviewRequest,
+    request: Request,
+    user: Annotated[UserModel, Depends(current_user)],
+) -> dict[str, object]:
+    if await _repo(request).get(user_id=user.id, job_id=job_id) is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    result = score(
+        category_scores=payload.category_scores,
+        weights=payload.weights,
+        thresholds=payload.thresholds,
+    )
+    return {
+        "total": result.total,
+        "confidence": result.confidence,
+        "recommendation": result.recommendation,
+        "category_scores": result.category_scores,
+    }
 
 
 @router.post("/{job_id}/evaluate", response_model=JobResponse)
