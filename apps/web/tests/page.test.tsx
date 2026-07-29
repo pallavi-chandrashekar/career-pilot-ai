@@ -35,5 +35,6 @@ describe("HomePage", () => {
     expect(screen.getByRole("heading", { name: "Add a job" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Import from URL" })).toBeInTheDocument();
     expect(screen.getByText(/Nothing is submitted to an employer/i)).toBeInTheDocument();
+    expect(screen.queryByText("Profile-based score preview")).not.toBeInTheDocument();
   });
 });

@@ -23,6 +23,22 @@ type JobDraft = {
   source_url: string;
 };
 
+type SearchProfile = {
+  id: string;
+  name: string;
+  is_active: boolean;
+  configuration: {
+    weights: Record<string, number>;
+    thresholds: Record<string, number>;
+  };
+};
+
+type ScorePreview = {
+  total: number;
+  confidence: number;
+  recommendation: string;
+};
+
 const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 const emptyDraft: JobDraft = {
   company: "",
@@ -31,6 +47,22 @@ const emptyDraft: JobDraft = {
   location: "",
   source_url: "",
 };
+const initialCategoryScores: Record<string, number> = {
+  core_technical_skills: 50,
+  distributed_systems: 50,
+  ai_alignment: 50,
+  domain_alignment: 50,
+  seniority: 50,
+  leadership: 50,
+  location: 50,
+  sponsorship: 50,
+  compensation: 50,
+  company_preference: 50,
+};
+
+function displayCategory(name: string) {
+  return name.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
 export function JobInbox({ token }: { token: string }) {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -38,6 +70,10 @@ export function JobInbox({ token }: { token: string }) {
   const [importUrl, setImportUrl] = useState("");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Job | null>(null);
+  const [profiles, setProfiles] = useState<SearchProfile[]>([]);
+  const [profileId, setProfileId] = useState("");
+  const [categoryScores, setCategoryScores] = useState(initialCategoryScores);
+  const [scorePreview, setScorePreview] = useState<ScorePreview | null>(null);
   const [message, setMessage] = useState("Add a job or load your existing inbox.");
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
   const filtered = useMemo(
@@ -139,6 +175,42 @@ export function JobInbox({ token }: { token: string }) {
         ? "Requirements extracted. You can now run deterministic hard filters."
         : "Hard filters evaluated. Review the result below.",
     );
+  }
+
+  async function loadProfiles() {
+    const response = await fetch(`${base}/api/v1/search-profiles?active_only=true`, { headers });
+    if (!response.ok) {
+      setMessage("Active search profiles could not be loaded.");
+      return;
+    }
+    const loaded = (await response.json()) as SearchProfile[];
+    setProfiles(loaded);
+    setProfileId(loaded[0]?.id ?? "");
+    setMessage(
+      loaded.length
+        ? "Choose an active profile for a transparent score preview."
+        : "Create and activate a search profile before scoring.",
+    );
+  }
+
+  async function previewScore() {
+    const profile = profiles.find((item) => item.id === profileId);
+    if (!selected || !profile) return;
+    const response = await fetch(`${base}/api/v1/jobs/${selected.id}/preview-score`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        category_scores: categoryScores,
+        weights: profile.configuration.weights,
+        thresholds: profile.configuration.thresholds,
+      }),
+    });
+    if (!response.ok) {
+      setMessage("Score preview could not be calculated. Check the selected profile.");
+      return;
+    }
+    setScorePreview((await response.json()) as ScorePreview);
+    setMessage("Score preview calculated from your selected profile. It does not take any action.");
   }
 
   return (
@@ -255,6 +327,62 @@ export function JobInbox({ token }: { token: string }) {
               <pre className="evidence-text">
                 {JSON.stringify(selected.hard_filter_results ?? "Not evaluated", null, 2)}
               </pre>
+              <section aria-labelledby="score-preview">
+                <div className="section-heading">
+                  <h3 id="score-preview">Profile-based score preview</h3>
+                  <button className="secondary" onClick={() => void loadProfiles()}>
+                    Load active profiles
+                  </button>
+                </div>
+                <p className="section-help">
+                  Set each visible category score from 0–100, then calculate using your profile’s
+                  saved weights and thresholds. This is an advisory preview only.
+                </p>
+                {profiles.length > 0 && (
+                  <>
+                    <label>
+                      Active search profile
+                      <select
+                        value={profileId}
+                        onChange={(event) => setProfileId(event.target.value)}
+                      >
+                        {profiles.map((profile) => (
+                          <option key={profile.id} value={profile.id}>
+                            {profile.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="guided-profile-form score-inputs">
+                      {Object.keys(initialCategoryScores).map((category) => (
+                        <label key={category}>
+                          {displayCategory(category)}
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={categoryScores[category]}
+                            onChange={(event) =>
+                              setCategoryScores({
+                                ...categoryScores,
+                                [category]: Math.max(0, Math.min(100, Number(event.target.value))),
+                              })
+                            }
+                          />
+                        </label>
+                      ))}
+                    </div>
+                    <button onClick={() => void previewScore()}>Calculate preview</button>
+                  </>
+                )}
+                {scorePreview && (
+                  <p role="status">
+                    Recommendation: {scorePreview.recommendation.replaceAll("_", " ")} · Score:{" "}
+                    {scorePreview.total}/100 · Confidence:{" "}
+                    {Math.round(scorePreview.confidence * 100)}%
+                  </p>
+                )}
+              </section>
             </>
           ) : (
             <p>Select a job to extract requirements and view its deterministic filter summary.</p>
