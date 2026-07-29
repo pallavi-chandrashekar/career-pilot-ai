@@ -1,24 +1,20 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import HomePage from "../app/page";
 
 describe("HomePage", () => {
-  it("shows claim review safety controls", () => {
+  it("starts with secure account onboarding", () => {
     render(<HomePage />);
-    expect(screen.getByRole("heading", { name: "Claim review" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Draft claims/i })).toBeInTheDocument();
-    expect(screen.getByText(/evidence-grounded draft claims/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Approve selected" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Search profiles" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Job inbox" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /verified job-search workspace/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
   });
 
-  it("opens the search profile editor without removing claim review", () => {
-    const view = render(<HomePage />);
-    const page = within(view.container);
-    fireEvent.click(page.getByRole("button", { name: "Search profiles" }));
-    expect(page.getByRole("heading", { name: "Search profiles" })).toBeInTheDocument();
-    expect(page.getByLabelText("Search profile YAML")).toBeInTheDocument();
-    expect(page.getByRole("button", { name: /Preview score/ })).toBeDisabled();
+  it("offers account registration", () => {
+    render(<HomePage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Create an account" }).at(-1)!);
+    expect(screen.getAllByRole("heading", { name: "Create account" }).at(-1)).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Display name").at(-1)).toBeInTheDocument();
   });
 });

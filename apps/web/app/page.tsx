@@ -22,6 +22,10 @@ const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:800
 
 export default function HomePage() {
   const [token, setToken] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [isRegistering, setIsRegistering] = useState(false);
   const [workspace, setWorkspace] = useState<"claims" | "profiles" | "jobs">("claims");
   const [claims, setClaims] = useState<Claim[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
@@ -29,18 +33,28 @@ export default function HomePage() {
   const [evidence, setEvidence] = useState<Record<string, ClaimEvidence>>({});
   const [message, setMessage] = useState("Enter a bearer token to review draft claims.");
 
-  async function loadClaims(event: FormEvent<HTMLFormElement>) {
+  async function authenticate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const response = await fetch(`${apiBaseUrl}/api/v1/candidate-claims`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const endpoint = isRegistering ? "register" : "login";
+    const payload = isRegistering
+      ? {
+          email,
+          password,
+          display_name: displayName,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }
+      : { email, password };
+    const response = await fetch(`${apiBaseUrl}/api/v1/auth/${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
     if (!response.ok) {
-      setMessage("Claims could not be loaded. Check the bearer token and try again.");
+      setMessage("Authentication failed. Check your details and try again.");
       return;
     }
-    setClaims(await response.json());
-    setSelected([]);
-    setMessage("Claims loaded. Draft claims require your explicit review.");
+    setToken(((await response.json()) as { access_token: string }).access_token);
+    setMessage("Signed in. Your session stays in this browser tab only.");
   }
 
   async function approve(claimIds: string[]) {
@@ -110,6 +124,55 @@ export default function HomePage() {
   }
 
   const drafts = claims.filter((claim) => claim.verification_status === "DRAFT");
+  if (!token)
+    return (
+      <main className="onboarding">
+        <p className="eyebrow">CareerPilot AI</p>
+        <h1>Build your verified job-search workspace</h1>
+        <p>Start with a private account, then add your evidence, search preferences, and jobs.</p>
+        <form onSubmit={authenticate} className="auth-form">
+          <h2>{isRegistering ? "Create account" : "Welcome back"}</h2>
+          {isRegistering && (
+            <label>
+              Display name
+              <input
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+                required
+              />
+            </label>
+          )}
+          <label>
+            Email
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              minLength={12}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+            />
+          </label>
+          <button type="submit">{isRegistering ? "Create secure account" : "Sign in"}</button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setIsRegistering(!isRegistering)}
+          >
+            {isRegistering ? "I already have an account" : "Create an account"}
+          </button>
+        </form>
+        <p role="status">{message}</p>
+      </main>
+    );
   return (
     <main>
       <nav aria-label="Workspace" className="workspace-nav">
@@ -132,17 +195,12 @@ export default function HomePage() {
           Job inbox
         </button>
       </nav>
-      <form onSubmit={loadClaims} className="token-form">
-        <label htmlFor="token">Bearer token</label>
-        <input
-          id="token"
-          type="password"
-          value={token}
-          onChange={(event) => setToken(event.target.value)}
-          required
-        />
-        <button type="submit">Load claims</button>
-      </form>
+      <div className="session-bar">
+        <span>Signed in</span>
+        <button className="secondary" onClick={() => setToken("")}>
+          Sign out
+        </button>
+      </div>
       {workspace === "profiles" ? (
         <SearchProfileEditor token={token} />
       ) : workspace === "jobs" ? (
