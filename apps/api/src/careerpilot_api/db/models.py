@@ -192,6 +192,8 @@ class JobModel(TimestampedModel):
     compensation: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     sponsorship: Mapped[str | None] = mapped_column(String(32), nullable=True)
     clearance: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    hard_filter_results: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    hard_filter_override: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
 
 
 class JobSourceModel(TimestampedModel):

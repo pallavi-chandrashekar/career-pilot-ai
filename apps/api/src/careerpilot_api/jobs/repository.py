@@ -81,3 +81,17 @@ class JobRepository:
             await session.commit()
             await session.refresh(job)
             return job
+
+    async def save_filter_data(
+        self, *, user_id: UUID, job_id: UUID, field: str, value: dict[str, object]
+    ) -> JobModel | None:
+        async with self._session_factory() as session:
+            job = await session.scalar(
+                select(JobModel).where(JobModel.user_id == user_id, JobModel.id == job_id)
+            )
+            if job is None:
+                return None
+            setattr(job, field, value)
+            await session.commit()
+            await session.refresh(job)
+            return job

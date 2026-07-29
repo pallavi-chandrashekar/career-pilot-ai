@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, HttpUrl
 
 from careerpilot_api.auth.api import current_user
 from careerpilot_api.db.models import JobModel, JobSourceModel, UserModel
+from careerpilot_api.jobs.hard_filters import evaluate_clearance, evaluate_sponsorship
 from careerpilot_api.jobs.normalization import normalize
 from careerpilot_api.jobs.repository import JobRepository
 from careerpilot_api.jobs.url_ingestion import fetch_job_page
@@ -35,6 +36,8 @@ class JobResponse(BaseModel):
     compensation: dict[str, object] | None = None
     sponsorship: str | None = None
     clearance: str | None = None
+    hard_filter_results: dict[str, object] | None = None
+    hard_filter_override: dict[str, object] | None = None
 
 
 class UrlImportRequest(BaseModel):
@@ -66,6 +69,8 @@ def _response(job: JobModel) -> JobResponse:
         compensation=job.compensation,
         sponsorship=job.sponsorship,
         clearance=job.clearance,
+        hard_filter_results=job.hard_filter_results,
+        hard_filter_override=job.hard_filter_override,
     )
 
 
@@ -97,6 +102,49 @@ async def create_job(
     saved = await _repo(request).create(
         job, JobSourceModel(job_id=job.id, source_type="MANUAL", source_url=job.canonical_url)
     )
+    return _response(saved)
+
+
+class OverrideRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=1000)
+
+
+@router.post("/{job_id}/evaluate", response_model=JobResponse)
+async def evaluate_job(
+    job_id: UUID, request: Request, user: Annotated[UserModel, Depends(current_user)]
+) -> JobResponse:
+    job = await _repo(request).get(user_id=user.id, job_id=job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    sponsorship = evaluate_sponsorship(job_sponsorship=job.sponsorship, required=True)
+    clearance = evaluate_clearance(job_clearance=job.clearance, policy="HARD_REQUIREMENT")
+    results: dict[str, object] = {
+        "sponsorship": sponsorship.__dict__,
+        "clearance": clearance.__dict__,
+    }
+    saved = await _repo(request).save_filter_data(
+        user_id=user.id, job_id=job_id, field="hard_filter_results", value=results
+    )
+    if saved is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    return _response(saved)
+
+
+@router.post("/{job_id}/override", response_model=JobResponse)
+async def override_job(
+    job_id: UUID,
+    payload: OverrideRequest,
+    request: Request,
+    user: Annotated[UserModel, Depends(current_user)],
+) -> JobResponse:
+    saved = await _repo(request).save_filter_data(
+        user_id=user.id,
+        job_id=job_id,
+        field="hard_filter_override",
+        value={"reason": payload.reason, "action": "HARD_FILTER_OVERRIDE"},
+    )
+    if saved is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
     return _response(saved)
 
 

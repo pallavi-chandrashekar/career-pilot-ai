@@ -158,13 +158,13 @@ Requires bearer authentication. Deterministically extracts explicit requirement,
 compensation, sponsorship, and clearance signals from the owner's job description.
 
 ### POST /jobs/{id}/evaluate
-Starts evaluation for one or more search profiles.
+Runs deterministic hard filters using explicit normalized evidence and persists rule results.
 
 ### GET /jobs/{id}/matches
 Returns stored match results.
 
 ### POST /jobs/{id}/override
-Applies a user override with reason.
+Applies and persists an owner-scoped hard-filter override with a required reason.
 
 ## Application packages
 
