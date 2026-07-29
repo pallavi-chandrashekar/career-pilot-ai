@@ -39,6 +39,15 @@ type ScorePreview = {
   recommendation: string;
 };
 
+type ResumeVersion = { id: string; name: string };
+type ApplicationDraft = {
+  tailored_resume: string[];
+  cover_letter: string;
+  recruiter_message: string;
+  referral_message: string;
+  evidence_map: Record<string, string[]>;
+};
+
 const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 const emptyDraft: JobDraft = {
   company: "",
@@ -74,6 +83,9 @@ export function JobInbox({ token }: { token: string }) {
   const [profileId, setProfileId] = useState("");
   const [categoryScores, setCategoryScores] = useState(initialCategoryScores);
   const [scorePreview, setScorePreview] = useState<ScorePreview | null>(null);
+  const [resumeVersions, setResumeVersions] = useState<ResumeVersion[]>([]);
+  const [resumeVersionId, setResumeVersionId] = useState("");
+  const [applicationDraft, setApplicationDraft] = useState<ApplicationDraft | null>(null);
   const [message, setMessage] = useState("Add a job or load your existing inbox.");
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
   const filtered = useMemo(
@@ -190,6 +202,41 @@ export function JobInbox({ token }: { token: string }) {
       loaded.length
         ? "Choose an active profile for a transparent score preview."
         : "Create and activate a search profile before scoring.",
+    );
+  }
+
+  async function loadResumeVersions() {
+    const response = await fetch(`${base}/api/v1/resume-versions`, { headers });
+    if (!response.ok) {
+      setMessage("Resume versions could not be loaded.");
+      return;
+    }
+    const loaded = (await response.json()) as ResumeVersion[];
+    setResumeVersions(loaded);
+    setResumeVersionId(loaded[0]?.id ?? "");
+    setMessage(
+      loaded.length
+        ? "Choose a master resume to assemble an evidence-backed draft."
+        : "Create a master resume before drafting application content.",
+    );
+  }
+
+  async function generateApplicationDraft() {
+    if (!selected || !resumeVersionId) return;
+    const response = await fetch(`${base}/api/v1/jobs/${selected.id}/application-draft`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ resume_version_id: resumeVersionId }),
+    });
+    if (!response.ok) {
+      setMessage(
+        "Application draft could not be generated. The resume must contain approved claims.",
+      );
+      return;
+    }
+    setApplicationDraft((await response.json()) as ApplicationDraft);
+    setMessage(
+      "Evidence-backed application draft generated. Review it before any export or approval.",
     );
   }
 
@@ -327,6 +374,54 @@ export function JobInbox({ token }: { token: string }) {
               <pre className="evidence-text">
                 {JSON.stringify(selected.hard_filter_results ?? "Not evaluated", null, 2)}
               </pre>
+              <section aria-labelledby="application-workspace">
+                <div className="section-heading">
+                  <h3 id="application-workspace">Application workspace</h3>
+                  <button className="secondary" onClick={() => void loadResumeVersions()}>
+                    Load master resumes
+                  </button>
+                </div>
+                <p className="section-help">
+                  Drafts use only approved claims from the selected master resume. No application is
+                  sent.
+                </p>
+                {resumeVersions.length > 0 && (
+                  <>
+                    <label>
+                      Master resume
+                      <select
+                        value={resumeVersionId}
+                        onChange={(event) => setResumeVersionId(event.target.value)}
+                      >
+                        {resumeVersions.map((resume) => (
+                          <option key={resume.id} value={resume.id}>
+                            {resume.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button onClick={() => void generateApplicationDraft()}>
+                      Generate evidence-backed draft
+                    </button>
+                  </>
+                )}
+                {applicationDraft && (
+                  <>
+                    <h4>Tailored resume content</h4>
+                    <ul>
+                      {applicationDraft.tailored_resume.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                    <h4>Cover letter</h4>
+                    <pre className="evidence-text">{applicationDraft.cover_letter}</pre>
+                    <h4>Evidence map</h4>
+                    <pre className="evidence-text">
+                      {JSON.stringify(applicationDraft.evidence_map, null, 2)}
+                    </pre>
+                  </>
+                )}
+              </section>
               <section aria-labelledby="score-preview">
                 <div className="section-heading">
                   <h3 id="score-preview">Profile-based score preview</h3>

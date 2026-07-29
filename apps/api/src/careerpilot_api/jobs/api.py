@@ -5,13 +5,16 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, HttpUrl
 
+from careerpilot_api.applications.service import build_draft
 from careerpilot_api.auth.api import current_user
+from careerpilot_api.claims.repository import ClaimRepository
 from careerpilot_api.db.models import JobModel, JobSourceModel, UserModel
 from careerpilot_api.jobs.hard_filters import evaluate_clearance, evaluate_sponsorship
 from careerpilot_api.jobs.normalization import normalize
 from careerpilot_api.jobs.repository import JobRepository
 from careerpilot_api.jobs.scoring import score
 from careerpilot_api.jobs.url_ingestion import fetch_job_page
+from careerpilot_api.resumes.repository import ResumeRepository
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
 
@@ -55,6 +58,14 @@ class UrlImportResponse(BaseModel):
 
 def _repo(request: Request) -> JobRepository:
     return cast(JobRepository, request.app.state.job_repository)
+
+
+def _resume_repo(request: Request) -> ResumeRepository:
+    return cast(ResumeRepository, request.app.state.resume_repository)
+
+
+def _claim_repo(request: Request) -> ClaimRepository:
+    return cast(ClaimRepository, request.app.state.claim_repository)
 
 
 def _response(job: JobModel) -> JobResponse:
@@ -114,6 +125,18 @@ class ScorePreviewRequest(BaseModel):
     category_scores: dict[str, int]
     weights: dict[str, int]
     thresholds: dict[str, int]
+
+
+class ApplicationDraftRequest(BaseModel):
+    resume_version_id: UUID
+
+
+class ApplicationDraftResponse(BaseModel):
+    tailored_resume: list[str]
+    cover_letter: str
+    recruiter_message: str
+    referral_message: str
+    evidence_map: dict[str, list[str]]
 
 
 @router.post("/{job_id}/preview-score")
@@ -190,6 +213,35 @@ async def import_job_url(
             status="PASTE_REQUIRED", url=url, paste_fallback_message=str(error)
         )
     return UrlImportResponse(status="EXTRACTED", url=url, extracted_text=text, page_title=title)
+
+
+@router.post("/{job_id}/application-draft", response_model=ApplicationDraftResponse)
+async def create_application_draft(
+    job_id: UUID,
+    payload: ApplicationDraftRequest,
+    request: Request,
+    user: Annotated[UserModel, Depends(current_user)],
+) -> ApplicationDraftResponse:
+    job = await _repo(request).get(user_id=user.id, job_id=job_id)
+    resume = await _resume_repo(request).get(user_id=user.id, resume_id=payload.resume_version_id)
+    if job is None or resume is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Job or resume version not found."
+        )
+    sections = cast(list[dict[str, list[dict[str, str]]]], resume.content_model.get("sections", []))
+    claim_ids = {item["claim_id"] for section in sections for item in section.get("items", [])}
+    approved = [
+        (str(claim.id), claim.canonical_statement)
+        for claim in await _claim_repo(request).list_claims(user_id=user.id)
+        if str(claim.id) in claim_ids and claim.verification_status.value == "APPROVED"
+    ]
+    if not approved:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No approved resume claims."
+        )
+    return ApplicationDraftResponse(
+        **build_draft(company=job.company, title=job.title, approved_claims=approved).__dict__
+    )
 
 
 @router.post("/{job_id}/normalize", response_model=JobResponse)
