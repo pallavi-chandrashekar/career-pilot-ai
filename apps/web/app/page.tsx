@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { SearchProfileEditor } from "./search-profile-editor";
 import { JobInbox } from "./job-inbox";
+import { EvidenceOnboarding } from "./evidence-onboarding";
 
 type Claim = {
   id: string;
@@ -26,7 +27,9 @@ export default function HomePage() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
-  const [workspace, setWorkspace] = useState<"claims" | "profiles" | "jobs">("claims");
+  const [workspace, setWorkspace] = useState<"evidence" | "claims" | "profiles" | "jobs">(
+    "evidence",
+  );
   const [claims, setClaims] = useState<Claim[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [edits, setEdits] = useState<Record<string, string>>({});
@@ -177,6 +180,12 @@ export default function HomePage() {
     <main>
       <nav aria-label="Workspace" className="workspace-nav">
         <button
+          className={workspace === "evidence" ? "selected" : "secondary"}
+          onClick={() => setWorkspace("evidence")}
+        >
+          My evidence
+        </button>
+        <button
           className={workspace === "claims" ? "selected" : "secondary"}
           onClick={() => setWorkspace("claims")}
         >
@@ -201,7 +210,9 @@ export default function HomePage() {
           Sign out
         </button>
       </div>
-      {workspace === "profiles" ? (
+      {workspace === "evidence" ? (
+        <EvidenceOnboarding token={token} done={() => setWorkspace("claims")} />
+      ) : workspace === "profiles" ? (
         <SearchProfileEditor token={token} />
       ) : workspace === "jobs" ? (
         <JobInbox token={token} />
