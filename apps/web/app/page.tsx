@@ -34,7 +34,7 @@ export default function HomePage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [evidence, setEvidence] = useState<Record<string, ClaimEvidence>>({});
-  const [message, setMessage] = useState("Enter a bearer token to review draft claims.");
+  const [message, setMessage] = useState("Review your evidence-grounded draft claims.");
 
   async function authenticate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -58,6 +58,23 @@ export default function HomePage() {
     }
     setToken(((await response.json()) as { access_token: string }).access_token);
     setMessage("Signed in. Your session stays in this browser tab only.");
+  }
+
+  async function loadClaims() {
+    const response = await fetch(`${apiBaseUrl}/api/v1/candidate-claims`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      setMessage("Claims could not be loaded. Upload and extract evidence, then try again.");
+      return;
+    }
+    const loaded = (await response.json()) as Claim[];
+    setClaims(loaded);
+    setSelected([]);
+    setEvidence({});
+    setMessage(
+      loaded.length ? "Draft claims are ready for review." : "No draft claims were found yet.",
+    );
   }
 
   async function approve(claimIds: string[]) {
@@ -211,7 +228,13 @@ export default function HomePage() {
         </button>
       </div>
       {workspace === "evidence" ? (
-        <EvidenceOnboarding token={token} done={() => setWorkspace("claims")} />
+        <EvidenceOnboarding
+          token={token}
+          done={() => {
+            setWorkspace("claims");
+            void loadClaims();
+          }}
+        />
       ) : workspace === "profiles" ? (
         <SearchProfileEditor token={token} />
       ) : workspace === "jobs" ? (
@@ -227,9 +250,14 @@ export default function HomePage() {
           <section aria-labelledby="draft-claims">
             <div className="section-heading">
               <h2 id="draft-claims">Draft claims ({drafts.length})</h2>
-              <button disabled={!selected.length} onClick={() => approve(selected)}>
-                Approve selected
-              </button>
+              <div className="claim-actions">
+                <button className="secondary" onClick={() => void loadClaims()}>
+                  Refresh claims
+                </button>
+                <button disabled={!selected.length} onClick={() => approve(selected)}>
+                  Approve selected
+                </button>
+              </div>
             </div>
             {!claims.length ? (
               <p>No claims loaded.</p>

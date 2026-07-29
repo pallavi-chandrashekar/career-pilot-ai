@@ -33,7 +33,7 @@ export function EvidenceOnboarding({ token, done }: { token: string; done: () =>
     setMessage("Extracting evidence-grounded draft claims…");
     const extracted = await fetch(`${base}/api/v1/documents/${document.id}/extract-claims`, {
       method: "POST",
-      headers,
+      headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
     if (!extracted.ok) {

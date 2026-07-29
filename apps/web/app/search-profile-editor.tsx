@@ -13,17 +13,42 @@ type Profile = {
   configuration: Record<string, unknown>;
 };
 
+type GuidedConfiguration = Record<string, unknown> & {
+  name: string;
+  description: string;
+  active: boolean;
+  target_roles: { title: string; priority: number; aliases: string[] }[];
+  locations: {
+    preferred: string[];
+    acceptable: string[];
+    excluded: string[];
+    [key: string]: unknown;
+  };
+  work_authorization: {
+    sponsorship_required: boolean;
+    sponsorship_policy?: string;
+    [key: string]: unknown;
+  };
+  compensation: { minimum_base: number | null; [key: string]: unknown };
+  skills: {
+    required: { name: string; policy: string }[];
+    preferred: string[];
+    learning_interests: string[];
+    excluded: string[];
+  };
+};
+
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
-const initialConfiguration = {
+const initialConfiguration: GuidedConfiguration = {
   name: "New search profile",
   description: "",
   active: false,
   target_roles: [],
   excluded_titles: [],
   locations: { preferred: [], acceptable: [], excluded: [] },
-  work_authorization: {},
-  compensation: {},
+  work_authorization: { sponsorship_required: false },
+  compensation: { minimum_base: null },
   employment_types: {},
   skills: { required: [], preferred: [], learning_interests: [], excluded: [] },
   companies: {},
@@ -77,6 +102,39 @@ export function SearchProfileEditor({ token }: { token: string }) {
       return null;
     }
   }
+
+  function configurationForForm(): typeof initialConfiguration {
+    try {
+      const parsed = parse(yaml);
+      if (!parsed || Array.isArray(parsed) || typeof parsed !== "object")
+        return initialConfiguration;
+      return {
+        ...initialConfiguration,
+        ...(parsed as Record<string, unknown>),
+      } as typeof initialConfiguration;
+    } catch {
+      return initialConfiguration;
+    }
+  }
+
+  function updateGuidedConfiguration(update: (draft: typeof initialConfiguration) => void) {
+    const value = configuration();
+    if (!value) return;
+    const draft = { ...initialConfiguration, ...value } as typeof initialConfiguration;
+    update(draft);
+    setYaml(stringify(draft));
+  }
+
+  function csv(value: string) {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  const guided = configurationForForm();
+  const targetRole = guided.target_roles[0]?.title ?? "";
+  const requiredSkills = guided.skills.required.map((skill) => skill.name).join(", ");
 
   async function validate() {
     const value = configuration();
@@ -200,19 +258,101 @@ export function SearchProfileEditor({ token }: { token: string }) {
           ))}
         </aside>
         <div>
-          <h2>Configuration editor</h2>
+          <h2>What are you looking for?</h2>
           <p className="section-help">
-            YAML sections: roles, locations, work authorization, compensation, skills, companies,
-            weights, thresholds, and notifications.
+            Start with the preferences that shape your job inbox. You can refine policies and
+            scoring in the advanced configuration when needed.
           </p>
-          <label className="yaml-editor" htmlFor="profile-yaml">
-            Search profile YAML
-            <textarea
-              id="profile-yaml"
-              value={yaml}
-              onChange={(event) => setYaml(event.target.value)}
-            />
-          </label>
+          <div className="guided-profile-form">
+            <label>
+              Profile name
+              <input
+                value={guided.name}
+                onChange={(event) =>
+                  updateGuidedConfiguration((draft) => {
+                    draft.name = event.target.value;
+                  })
+                }
+              />
+            </label>
+            <label>
+              Target role
+              <input
+                placeholder="For example, Senior Software Engineer"
+                value={targetRole}
+                onChange={(event) =>
+                  updateGuidedConfiguration((draft) => {
+                    draft.target_roles = event.target.value.trim()
+                      ? [{ title: event.target.value.trim(), priority: 1, aliases: [] }]
+                      : [];
+                  })
+                }
+              />
+            </label>
+            <label>
+              Preferred locations
+              <input
+                placeholder="For example, Seattle, Remote"
+                value={guided.locations.preferred.join(", ")}
+                onChange={(event) =>
+                  updateGuidedConfiguration((draft) => {
+                    draft.locations = { ...draft.locations, preferred: csv(event.target.value) };
+                  })
+                }
+              />
+            </label>
+            <label>
+              Required skills
+              <input
+                placeholder="For example, Python, FastAPI"
+                value={requiredSkills}
+                onChange={(event) =>
+                  updateGuidedConfiguration((draft) => {
+                    draft.skills = {
+                      ...draft.skills,
+                      required: csv(event.target.value).map((name) => ({
+                        name,
+                        policy: "STRONG_PREFERENCE",
+                      })),
+                    };
+                  })
+                }
+              />
+            </label>
+            <label>
+              Minimum base salary (USD)
+              <input
+                type="number"
+                min="0"
+                value={guided.compensation.minimum_base ?? ""}
+                onChange={(event) =>
+                  updateGuidedConfiguration((draft) => {
+                    const value = event.target.value;
+                    draft.compensation = {
+                      ...draft.compensation,
+                      minimum_base: value ? Number(value) : null,
+                    };
+                  })
+                }
+              />
+            </label>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={guided.work_authorization.sponsorship_required}
+                onChange={(event) =>
+                  updateGuidedConfiguration((draft) => {
+                    draft.work_authorization = {
+                      ...draft.work_authorization,
+                      sponsorship_required: event.target.checked,
+                      sponsorship_policy: event.target.checked ? "HARD_REQUIREMENT" : "IGNORE",
+                    };
+                  })
+                }
+              />
+              I require visa sponsorship
+            </label>
+          </div>
           <div className="claim-actions">
             <button onClick={save}>{selected ? "Save new version" : "Create profile"}</button>
             <button className="secondary" onClick={validate} disabled={!selected}>
@@ -228,9 +368,6 @@ export function SearchProfileEditor({ token }: { token: string }) {
               Import YAML
               <input type="file" accept=".yaml,.yml,application/yaml" onChange={importYaml} />
             </label>
-            <button disabled title="Job scoring is introduced in Task 014.">
-              Preview score (coming soon)
-            </button>
           </div>
           {selected && (
             <div className="claim-actions state-actions">
@@ -246,6 +383,21 @@ export function SearchProfileEditor({ token }: { token: string }) {
               </button>
             </div>
           )}
+          <details className="advanced-configuration">
+            <summary>Advanced YAML configuration</summary>
+            <p className="section-help">
+              Use this to fine-tune scoring weights, company preferences, policies, and
+              notifications.
+            </p>
+            <label className="yaml-editor" htmlFor="profile-yaml">
+              Search profile YAML
+              <textarea
+                id="profile-yaml"
+                value={yaml}
+                onChange={(event) => setYaml(event.target.value)}
+              />
+            </label>
+          </details>
         </div>
       </div>
     </section>
