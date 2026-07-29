@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import HomePage from "../app/page";
+import { JobInbox } from "../app/job-inbox";
 import { SearchProfileEditor } from "../app/search-profile-editor";
 
 describe("HomePage", () => {
@@ -27,5 +28,12 @@ describe("HomePage", () => {
     });
     expect(screen.getByLabelText("Target role")).toHaveValue("Platform Engineer");
     expect(screen.getByText("Advanced YAML configuration")).toBeInTheDocument();
+  });
+
+  it("lets the user add a job without submitting it externally", () => {
+    render(<JobInbox token="test-token" />);
+    expect(screen.getByRole("heading", { name: "Add a job" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Import from URL" })).toBeInTheDocument();
+    expect(screen.getByText(/Nothing is submitted to an employer/i)).toBeInTheDocument();
   });
 });
