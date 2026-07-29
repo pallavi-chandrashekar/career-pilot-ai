@@ -10,6 +10,7 @@ describe("HomePage", () => {
     expect(screen.getByText(/evidence-grounded draft claims/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Approve selected" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Search profiles" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Job inbox" })).toBeInTheDocument();
   });
 
   it("opens the search profile editor without removing claim review", () => {

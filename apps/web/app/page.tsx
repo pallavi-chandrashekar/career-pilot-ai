@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { SearchProfileEditor } from "./search-profile-editor";
+import { JobInbox } from "./job-inbox";
 
 type Claim = {
   id: string;
@@ -21,7 +22,7 @@ const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:800
 
 export default function HomePage() {
   const [token, setToken] = useState("");
-  const [workspace, setWorkspace] = useState<"claims" | "profiles">("claims");
+  const [workspace, setWorkspace] = useState<"claims" | "profiles" | "jobs">("claims");
   const [claims, setClaims] = useState<Claim[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [edits, setEdits] = useState<Record<string, string>>({});
@@ -124,6 +125,12 @@ export default function HomePage() {
         >
           Search profiles
         </button>
+        <button
+          className={workspace === "jobs" ? "selected" : "secondary"}
+          onClick={() => setWorkspace("jobs")}
+        >
+          Job inbox
+        </button>
       </nav>
       <form onSubmit={loadClaims} className="token-form">
         <label htmlFor="token">Bearer token</label>
@@ -138,6 +145,8 @@ export default function HomePage() {
       </form>
       {workspace === "profiles" ? (
         <SearchProfileEditor token={token} />
+      ) : workspace === "jobs" ? (
+        <JobInbox token={token} />
       ) : (
         <>
           <p className="eyebrow">Candidate profile</p>
