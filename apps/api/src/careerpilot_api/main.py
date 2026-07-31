@@ -7,6 +7,8 @@ from fastapi import FastAPI, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 
+from careerpilot_api.applications.api import router as application_packages_router
+from careerpilot_api.applications.repository import ApplicationPackageRepository
 from careerpilot_api.auth.api import router as auth_router
 from careerpilot_api.auth.repository import UserRepository
 from careerpilot_api.claims.api import router as claims_router
@@ -41,6 +43,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.search_profile_repository = SearchProfileRepository(session_factory)
     app.state.job_repository = JobRepository(session_factory)
     app.state.resume_repository = ResumeRepository(session_factory)
+    app.state.application_package_repository = ApplicationPackageRepository(session_factory)
     providers: tuple[ClaimExtractionProvider, ...] = ()
     if settings.openai_api_key is not None:
         providers = (OpenAIClaimExtractionProvider(settings.openai_api_key.get_secret_value()),)
@@ -60,6 +63,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="CareerPilot AI", version="0.1.0", lifespan=lifespan)
     app.include_router(auth_router)
+    app.include_router(application_packages_router)
     app.include_router(claims_router)
     app.include_router(documents_router)
     app.include_router(search_profiles_router)

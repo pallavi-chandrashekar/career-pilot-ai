@@ -237,6 +237,36 @@ class ResumeVersionModel(TimestampedModel):
     )
 
 
+class ApplicationPackageModel(TimestampedModel):
+    """Draft application material and its claim-level evidence map."""
+
+    __tablename__ = "application_packages"
+    __table_args__ = (
+        Index("ix_application_packages_user_job_created", "user_id", "job_id", "created_at"),
+        {"schema": "careerpilot"},
+    )
+
+    id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("careerpilot.users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    job_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("careerpilot.jobs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    resume_version_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("careerpilot.resume_versions.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    content: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    evidence_map: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="DRAFT")
+
+
 class WorkflowRunModel(TimestampedModel):
     __tablename__ = "workflow_runs"
     __table_args__ = (

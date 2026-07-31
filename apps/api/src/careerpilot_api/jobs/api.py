@@ -5,10 +5,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, HttpUrl
 
+from careerpilot_api.applications.repository import ApplicationPackageRepository
 from careerpilot_api.applications.service import build_draft
 from careerpilot_api.auth.api import current_user
 from careerpilot_api.claims.repository import ClaimRepository
-from careerpilot_api.db.models import JobModel, JobSourceModel, UserModel
+from careerpilot_api.db.models import ApplicationPackageModel, JobModel, JobSourceModel, UserModel
 from careerpilot_api.jobs.hard_filters import evaluate_clearance, evaluate_sponsorship
 from careerpilot_api.jobs.normalization import normalize
 from careerpilot_api.jobs.repository import JobRepository
@@ -66,6 +67,10 @@ def _resume_repo(request: Request) -> ResumeRepository:
 
 def _claim_repo(request: Request) -> ClaimRepository:
     return cast(ClaimRepository, request.app.state.claim_repository)
+
+
+def _package_repo(request: Request) -> ApplicationPackageRepository:
+    return cast(ApplicationPackageRepository, request.app.state.application_package_repository)
 
 
 def _response(job: JobModel) -> JobResponse:
@@ -132,6 +137,7 @@ class ApplicationDraftRequest(BaseModel):
 
 
 class ApplicationDraftResponse(BaseModel):
+    id: UUID
     tailored_resume: list[str]
     cover_letter: str
     recruiter_message: str
@@ -239,9 +245,22 @@ async def create_application_draft(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No approved resume claims."
         )
-    return ApplicationDraftResponse(
-        **build_draft(company=job.company, title=job.title, approved_claims=approved).__dict__
+    draft = build_draft(company=job.company, title=job.title, approved_claims=approved)
+    package = await _package_repo(request).create(
+        ApplicationPackageModel(
+            user_id=user.id,
+            job_id=job.id,
+            resume_version_id=resume.id,
+            content={
+                "tailored_resume": draft.tailored_resume,
+                "cover_letter": draft.cover_letter,
+                "recruiter_message": draft.recruiter_message,
+                "referral_message": draft.referral_message,
+            },
+            evidence_map=draft.evidence_map,
+        )
     )
+    return ApplicationDraftResponse(id=package.id, **draft.__dict__)
 
 
 @router.post("/{job_id}/normalize", response_model=JobResponse)
