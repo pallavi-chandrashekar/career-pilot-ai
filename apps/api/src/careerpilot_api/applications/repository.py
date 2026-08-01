@@ -31,3 +31,21 @@ class ApplicationPackageRepository:
                     )
                 ),
             )
+
+    async def save_export_keys(
+        self, *, user_id: UUID, package_id: UUID, docx_key: str, pdf_key: str
+    ) -> ApplicationPackageModel | None:
+        async with self._session_factory() as session:
+            package = await session.scalar(
+                select(ApplicationPackageModel).where(
+                    ApplicationPackageModel.user_id == user_id,
+                    ApplicationPackageModel.id == package_id,
+                )
+            )
+            if package is None:
+                return None
+            package.docx_storage_key = docx_key
+            package.pdf_storage_key = pdf_key
+            await session.commit()
+            await session.refresh(package)
+            return package

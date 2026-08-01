@@ -265,6 +265,8 @@ class ApplicationPackageModel(TimestampedModel):
     content: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
     evidence_map: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="DRAFT")
+    docx_storage_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    pdf_storage_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
 
 class WorkflowRunModel(TimestampedModel):

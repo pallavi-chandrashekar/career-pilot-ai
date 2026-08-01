@@ -22,6 +22,8 @@ class ApplicationPackageResponse(BaseModel):
     content: dict[str, object]
     evidence_map: dict[str, object]
     status: str
+    docx_storage_key: str | None
+    pdf_storage_key: str | None
 
 
 class FactualityReportResponse(BaseModel):
@@ -45,6 +47,8 @@ def _response(package: ApplicationPackageModel) -> ApplicationPackageResponse:
         content=package.content,
         evidence_map=package.evidence_map,
         status=package.status,
+        docx_storage_key=package.docx_storage_key,
+        pdf_storage_key=package.pdf_storage_key,
     )
 
 
