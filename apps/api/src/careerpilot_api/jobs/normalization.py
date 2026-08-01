@@ -23,7 +23,11 @@ def normalize(description: str) -> dict[str, object]:
         else "UNKNOWN"
     )
     clearance = (
-        "REQUIRED" if "security clearance" in text or "clearance required" in text else "UNKNOWN"
+        "NOT_REQUIRED"
+        if re.search(r"\b(no|not) (security )?clearance (is )?required\b", text)
+        else "REQUIRED"
+        if "security clearance" in text or "clearance required" in text
+        else "UNKNOWN"
     )
     required = [
         line.strip()

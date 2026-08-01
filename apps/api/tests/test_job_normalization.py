@@ -10,3 +10,8 @@ def test_normalizes_only_explicit_job_signals() -> None:
     assert result["sponsorship"] == "AVAILABLE"
     assert result["clearance"] == "REQUIRED"
     assert result["compensation"] == {"amounts": [180000]}
+
+
+def test_does_not_treat_clearance_negation_as_a_requirement() -> None:
+    result = normalize("No clearance required. Required: Python")
+    assert result["clearance"] == "NOT_REQUIRED"

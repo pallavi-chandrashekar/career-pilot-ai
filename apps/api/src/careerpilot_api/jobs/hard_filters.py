@@ -55,6 +55,13 @@ def evaluate_clearance(*, job_clearance: str | None, policy: str) -> FilterResul
             "REQUIRED",
             "Job explicitly requires clearance.",
         )
+    if job_clearance == "NOT_REQUIRED":
+        return FilterResult(
+            FilterOutcome.PASS,
+            "CLEARANCE_NOT_REQUIRED",
+            "NOT_REQUIRED",
+            "Job explicitly states that clearance is not required.",
+        )
     return FilterResult(
         FilterOutcome.UNKNOWN, "CLEARANCE_UNKNOWN", None, "Clearance information is missing."
     )
