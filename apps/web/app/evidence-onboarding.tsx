@@ -46,10 +46,10 @@ export function EvidenceOnboarding({ token, done }: { token: string; done: () =>
   return (
     <section aria-labelledby="evidence-onboarding">
       <p className="eyebrow">Step 1 of 3</p>
-      <h1 id="evidence-onboarding">Build your verified profile</h1>
+      <h1 id="evidence-onboarding">Add your resume</h1>
       <p>
-        We only create draft claims backed by the exact lines in your document. You decide what
-        becomes approved evidence.
+        We will find possible skills and experience from your document. Review and approve only what
+        is accurate before it is used in an application.
       </p>
       <label className="auth-form">
         Resume or profile document

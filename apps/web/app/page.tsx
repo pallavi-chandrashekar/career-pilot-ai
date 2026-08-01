@@ -35,7 +35,7 @@ export default function HomePage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [evidence, setEvidence] = useState<Record<string, ClaimEvidence>>({});
-  const [message, setMessage] = useState("Review your evidence-grounded draft claims.");
+  const [message, setMessage] = useState("Upload a resume to get started.");
 
   async function authenticate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -149,8 +149,10 @@ export default function HomePage() {
     return (
       <main className="onboarding">
         <p className="eyebrow">CareerPilot AI</p>
-        <h1>Build your verified job-search workspace</h1>
-        <p>Start with a private account, then add your evidence, search preferences, and jobs.</p>
+        <h1>Set up your job search</h1>
+        <p>
+          Create an account to save your resume, job preferences, and opportunities in one place.
+        </p>
         <form onSubmit={authenticate} className="auth-form">
           <h2>{isRegistering ? "Create account" : "Welcome back"}</h2>
           {isRegistering && (
@@ -253,7 +255,8 @@ export default function HomePage() {
           <p className="eyebrow">Candidate profile</p>
           <h1>Claim review</h1>
           <p>
-            Review evidence-grounded draft claims before they can be used in application content.
+            Review the statements we found in your document. Approve only the details that are
+            accurate.
           </p>
           <p role="status">{message}</p>
           <section aria-labelledby="draft-claims">

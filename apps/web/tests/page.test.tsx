@@ -8,9 +8,7 @@ import { SearchProfileEditor } from "../app/search-profile-editor";
 describe("HomePage", () => {
   it("starts with secure account onboarding", () => {
     render(<HomePage />);
-    expect(
-      screen.getByRole("heading", { name: /verified job-search workspace/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /set up your job search/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
   });
 
