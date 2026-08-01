@@ -41,11 +41,17 @@ type ScorePreview = {
 
 type ResumeVersion = { id: string; name: string };
 type ApplicationDraft = {
+  id: string;
   tailored_resume: string[];
   cover_letter: string;
   recruiter_message: string;
   referral_message: string;
   evidence_map: Record<string, string[]>;
+};
+
+type FactualityReport = {
+  valid: boolean;
+  findings: { field: string; code: string; message: string }[];
 };
 
 const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -86,6 +92,7 @@ export function JobInbox({ token }: { token: string }) {
   const [resumeVersions, setResumeVersions] = useState<ResumeVersion[]>([]);
   const [resumeVersionId, setResumeVersionId] = useState("");
   const [applicationDraft, setApplicationDraft] = useState<ApplicationDraft | null>(null);
+  const [factualityReport, setFactualityReport] = useState<FactualityReport | null>(null);
   const [message, setMessage] = useState("Add a job or load your existing inbox.");
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
   const filtered = useMemo(
@@ -235,9 +242,28 @@ export function JobInbox({ token }: { token: string }) {
       return;
     }
     setApplicationDraft((await response.json()) as ApplicationDraft);
+    setFactualityReport(null);
     setMessage(
       "Evidence-backed application draft generated. Review it before any export or approval.",
     );
+  }
+
+  async function validateApplicationDraft() {
+    if (!applicationDraft) return;
+    const response = await fetch(
+      `${base}/api/v1/application-packages/${applicationDraft.id}/validate`,
+      {
+        method: "POST",
+        headers,
+      },
+    );
+    if (!response.ok) {
+      setMessage("Factuality validation could not be completed.");
+      return;
+    }
+    const report = (await response.json()) as FactualityReport;
+    setFactualityReport(report);
+    setMessage(report.valid ? "Factuality validation passed." : "Factuality findings need review.");
   }
 
   async function previewScore() {
@@ -419,6 +445,18 @@ export function JobInbox({ token }: { token: string }) {
                     <pre className="evidence-text">
                       {JSON.stringify(applicationDraft.evidence_map, null, 2)}
                     </pre>
+                    <button onClick={() => void validateApplicationDraft()}>
+                      Validate factuality
+                    </button>
+                    {factualityReport && (
+                      <p role="status">
+                        {factualityReport.valid
+                          ? "All mapped claims are approved and present."
+                          : factualityReport.findings
+                              .map((finding) => `${finding.field}: ${finding.message}`)
+                              .join(" ")}
+                      </p>
+                    )}
                   </>
                 )}
               </section>

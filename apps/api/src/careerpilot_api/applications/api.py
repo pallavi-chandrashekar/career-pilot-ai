@@ -6,9 +6,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
+from careerpilot_api.applications.factuality import validate_package
 from careerpilot_api.applications.repository import ApplicationPackageRepository
 from careerpilot_api.auth.api import current_user
-from careerpilot_api.db.models import ApplicationPackageModel, UserModel
+from careerpilot_api.claims.repository import ClaimRepository
+from careerpilot_api.db.models import ApplicationPackageModel, ClaimVerificationStatus, UserModel
 
 router = APIRouter(prefix="/api/v1/application-packages", tags=["application-packages"])
 
@@ -22,8 +24,17 @@ class ApplicationPackageResponse(BaseModel):
     status: str
 
 
+class FactualityReportResponse(BaseModel):
+    valid: bool
+    findings: list[dict[str, str | None]]
+
+
 def _repository(request: Request) -> ApplicationPackageRepository:
     return cast(ApplicationPackageRepository, request.app.state.application_package_repository)
+
+
+def _claims(request: Request) -> ClaimRepository:
+    return cast(ClaimRepository, request.app.state.claim_repository)
 
 
 def _response(package: ApplicationPackageModel) -> ApplicationPackageResponse:
@@ -47,3 +58,34 @@ async def get_application_package(
             status_code=status.HTTP_404_NOT_FOUND, detail="Application package not found."
         )
     return _response(package)
+
+
+@router.post("/{package_id}/validate", response_model=FactualityReportResponse)
+async def validate_application_package(
+    package_id: UUID, request: Request, user: Annotated[UserModel, Depends(current_user)]
+) -> FactualityReportResponse:
+    package = await _repository(request).get(user_id=user.id, package_id=package_id)
+    if package is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Application package not found."
+        )
+    approved_claims = {
+        str(claim.id): claim.canonical_statement
+        for claim in await _claims(request).list_claims(user_id=user.id)
+        if claim.verification_status is ClaimVerificationStatus.APPROVED
+    }
+    findings = validate_package(
+        content=package.content, evidence_map=package.evidence_map, approved_claims=approved_claims
+    )
+    return FactualityReportResponse(
+        valid=not findings,
+        findings=[
+            {
+                "field": finding.field,
+                "claim_id": finding.claim_id,
+                "code": finding.code,
+                "message": finding.message,
+            }
+            for finding in findings
+        ],
+    )
